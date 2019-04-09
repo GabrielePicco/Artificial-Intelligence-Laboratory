@@ -1,20 +1,33 @@
-iterative_deepening_search(Soluzione):-
+a_star(Soluzione):-
     iniziale(S),
-    iterative_deepening_aux(S,Soluzione,[S],1).
+    a_star_aux([nodo(euristica(S),0,S,[])],[],Soluzione).
 
-iterative_deepening_aux(S,Soluzione,Visitati,Soglia):-
-    nl,write(soglia=Soglia),
-    dfs_aux(S,Soluzione,Visitati,Soglia),!.
+% a_star_aux(Coda,Visitati,Soluzione)
+% Coda = [nodo(F,G,S,Azioni)|...]
+a_star_aux([nodo(_,_,S,Azioni)|_],_,Azioni):-finale(S).
+a_star_aux([nodo(F,G,S,Azioni)|Tail],Visitati,Soluzione):-
+    findall(Azione, applicabile(Azione,S), ListaAzioniApplicabili),
+    generaFigli(nodo(F,G,S,Azioni),ListaAzioniApplicabili,Visitati,ListaFigli),
+    append(Tail,ListaFigli,NuovaCoda),
+    sort(NuovaCoda,CodaOrdinata),
+    is_sorted(CodaOrdinata),
+    a_star_aux(CodaOrdinata,[S|Visitati],Soluzione).
 
-iterative_deepening_aux(S,Soluzione,Visitati,Soglia):-
-    NuovaSoglia is Soglia+1,
-    iterative_deepening_aux(S,Soluzione,Visitati,NuovaSoglia).
-
-dfs_aux(S,[],_,_):-finale(S).
-dfs_aux(S,[Azione|AzioniTail],Visitati,Soglia):-
-    Soglia>0,
-    applicabile(Azione,S),
+% generaFigli(Nodo(S,Azioni), ListaAzioniApplicabili, Visitati, ListaFigli)
+generaFigli(_,[],_,[]).
+generaFigli(nodo(F,G,S,Azioni),[Azione|AltreAzioni],Visitati,[nodo(FNuovo,GNuovo,SNuovo,[Azione|Azioni])|FigliTail]):-
     trasforma(Azione,S,SNuovo),
-    \+member(SNuovo,Visitati),
-    NuovaSoglia is Soglia-1,
-    dfs_aux(SNuovo,AzioniTail,[SNuovo|Visitati],NuovaSoglia).
+    GNuovo is G+1,
+    euristica(SNuovo,H),
+    FNuovo is H + GNuovo,
+    \+member(SNuovo,Visitati),!,
+    generaFigli(nodo(F,G,S,Azioni),AltreAzioni,Visitati,FigliTail).
+
+generaFigli(nodo(F,G,S,AzioniPerS),[_|AltreAzioni],Visitati,FigliTail):-
+    generaFigli(nodo(F,G,S,AzioniPerS),AltreAzioni,Visitati,FigliTail).
+
+is_sorted([]).
+is_sorted([_]).
+is_sorted([nodo(F1,_,_,_),nodo(F2,G2,S2,Azioni2)|T]) :-
+   F1=<F2,
+   is_sorted([nodo(F2,G2,S2,Azioni2)|T]).

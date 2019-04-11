@@ -7,9 +7,8 @@ from PIL import Image
 
 class MazeGenerator:
 
-    def __init__(self, image_size_x=500, image_size_y=500):
-        self.image_size_x = image_size_x
-        self.image_size_y = image_size_y
+    def __init__(self, image_scale=500):
+        self.image_scale = image_scale
         # RGB colors of the maze (WALL, EMPTY, GOAL, START)
         self.colors = [(36, 137, 191), (255, 255, 255), (0, 154, 22), (249, 105, 40)]
 
@@ -27,7 +26,9 @@ class MazeGenerator:
         return '\n'.join(prolog_kb)
 
     def generate_maze(self, row, column, difficulty=1):
-        image = Image.new("RGB", (self.image_size_x, self.image_size_y))
+        image_size_y = int(row / row) * self.image_scale
+        image_size_x = int(column / row) * self.image_scale
+        image = Image.new("RGB", (image_size_x, image_size_y))
         pixels = image.load()
         maze = [[0 for _ in range(column)] for _ in range(row)]
         dx = [0, 1, 0, -1]
@@ -83,14 +84,14 @@ class MazeGenerator:
                 if maze[r][c] == 0 and random.uniform(0, 1) > difficulty:
                     maze[r][c] = 1
         # paint the maze
-        for ky in range(self.image_size_y):
-            for kx in range(self.image_size_x):
-                if kx % (self.image_size_x // column) == 0:
+        for ky in range(image_size_y):
+            for kx in range(image_size_x):
+                if kx % (image_size_x // column) == 0:
                     pixels[kx, ky] = (0, 0, 0)
-                elif ky % (self.image_size_y // row) == 0:
+                elif ky % (image_size_y // row) == 0:
                     pixels[kx, ky] = (0, 0, 0)
                 else:
-                    pixels[kx, ky] = self.colors[maze[row * ky // self.image_size_y][column * kx // self.image_size_x]]
+                    pixels[kx, ky] = self.colors[maze[row * ky // image_size_y][column * kx // image_size_x]]
         return maze, image
 
 

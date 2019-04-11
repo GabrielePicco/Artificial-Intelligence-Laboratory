@@ -11,19 +11,20 @@ ida_star_aux(S,Soluzione,Visitati,FSoglia):-
     ida_star_aux(S,Soluzione,Visitati,NuovaFSoglia).
 
 dfs_aux(S,[],_,_,_):-finale(S).
+
+dfs_aux(S,_,_,G,FSoglia):-
+    euristica(S,H),
+    FValue is G + H,
+    FValue > FSoglia,!,
+    assertz(fvalue(FValue)),
+    false.
+
 dfs_aux(S,[Azione|AzioniTail],Visitati,G,FSoglia):-
-    G<FSoglia,
     applicabile(Azione,S),
     trasforma(Azione,S,SNuovo),
     \+member(SNuovo,Visitati),
     GNuovo is G+1,
     dfs_aux(SNuovo,AzioniTail,[SNuovo|Visitati],GNuovo,FSoglia).
-
-dfs_aux(S,_,_,G,_):-
-    euristica(S,H),
-    FValue is G + H,
-    assertz(fvalue(FValue)),
-    false.
 
 min_nuova_FSoglia(F,FSoglia):-
     findall(V, (fvalue(V), V > F), ListaV),

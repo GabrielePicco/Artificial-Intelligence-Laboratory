@@ -16,7 +16,8 @@ a_star_aux([nodo(F,G,S,Azioni)|Tail],Visitati,Soluzione):-
 generaFigli(_,[],_,[]).
 generaFigli(nodo(F,G,S,Azioni),[Azione|AltreAzioni],Visitati,[nodo(FNuovo,GNuovo,SNuovo,[Azione|Azioni])|FigliTail]):-
     trasforma(Azione,S,SNuovo),
-    GNuovo is G+1,
+    costo(Azione,C),
+    GNuovo is G+C,
     euristica(SNuovo,H),
     FNuovo is H + GNuovo,
     \+member(SNuovo,Visitati),!,

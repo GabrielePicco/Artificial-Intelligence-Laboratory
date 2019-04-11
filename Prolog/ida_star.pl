@@ -4,6 +4,7 @@ ida_star(Soluzione):-
     ida_star_aux(S,Soluzione,[S],H).
 
 ida_star_aux(S,Soluzione,Visitati,FSoglia):-
+    nl,write(fsoglia=FSoglia),
     dfs_aux(S,Soluzione,Visitati,0,FSoglia),!.
 
 ida_star_aux(S,Soluzione,Visitati,FSoglia):-
@@ -23,7 +24,8 @@ dfs_aux(S,[Azione|AzioniTail],Visitati,G,FSoglia):-
     applicabile(Azione,S),
     trasforma(Azione,S,SNuovo),
     \+member(SNuovo,Visitati),
-    GNuovo is G+1,
+    costo(Azione,C),
+    GNuovo is G+C,
     dfs_aux(SNuovo,AzioniTail,[SNuovo|Visitati],GNuovo,FSoglia).
 
 min_nuova_FSoglia(F,FSoglia):-

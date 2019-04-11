@@ -10,7 +10,6 @@ a_star_aux([nodo(F,G,S,Azioni)|Tail],Visitati,Soluzione):-
     generaFigli(nodo(F,G,S,Azioni),ListaAzioniApplicabili,Visitati,ListaFigli),
     append(Tail,ListaFigli,NuovaCoda),
     sort(NuovaCoda,CodaOrdinata),
-    is_sorted(CodaOrdinata),
     a_star_aux(CodaOrdinata,[S|Visitati],Soluzione).
 
 % generaFigli(Nodo(S,Azioni), ListaAzioniApplicabili, Visitati, ListaFigli)
@@ -25,9 +24,3 @@ generaFigli(nodo(F,G,S,Azioni),[Azione|AltreAzioni],Visitati,[nodo(FNuovo,GNuovo
 
 generaFigli(nodo(F,G,S,AzioniPerS),[_|AltreAzioni],Visitati,FigliTail):-
     generaFigli(nodo(F,G,S,AzioniPerS),AltreAzioni,Visitati,FigliTail).
-
-is_sorted([]).
-is_sorted([_]).
-is_sorted([nodo(F1,_,_,_),nodo(F2,G2,S2,Azioni2)|T]) :-
-   F1=<F2,
-   is_sorted([nodo(F2,G2,S2,Azioni2)|T]).

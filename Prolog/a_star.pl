@@ -1,6 +1,6 @@
 a_star(Soluzione):-
     iniziale(S),
-    a_star_aux([nodo(euristica(S),0,S,[])],[],Soluzione).
+    a_star_aux([nodo(euristica(S),0,S,[])],[],Soluzione),!.
 
 % a_star_aux(Coda,Visitati,Soluzione)
 % Coda = [nodo(F,G,S,Azioni)|...]

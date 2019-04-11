@@ -1,9 +1,8 @@
-iterative_deepening_search(Soluzione):-
+iterative_deepening(Soluzione):-
     iniziale(S),
     iterative_deepening_aux(S,Soluzione,[S],1).
 
 iterative_deepening_aux(S,Soluzione,Visitati,Soglia):-
-    nl,write(soglia=Soglia),
     dfs_aux(S,Soluzione,Visitati,Soglia),!.
 
 iterative_deepening_aux(S,Soluzione,Visitati,Soglia):-

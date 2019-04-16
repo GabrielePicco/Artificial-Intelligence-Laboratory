@@ -14,6 +14,8 @@ class MazeGenerator:
 
     def maze_to_prolog(self, maze):
         prolog_kb = ["num_righe({}).".format(len(maze)), "num_colonne({}).".format(len(maze[0]))]
+        row = len(maze)
+        column = len(maze[0])
         for r in range(row):
             for c in range(column):
                 if maze[r][c] == 0:
@@ -26,8 +28,13 @@ class MazeGenerator:
         return '\n'.join(prolog_kb)
 
     def generate_maze(self, row, column, difficulty=1):
-        image_size_y = int(row / row) * self.image_scale
-        image_size_x = int(column / row) * self.image_scale
+        ratiox, ratioy = 1, 1
+        if row > column:
+            ratioy = row/column
+        if column > row:
+            ratiox = column/row
+        image_size_y = int(ratioy * self.image_scale)
+        image_size_x = int(ratiox * self.image_scale)
         image = Image.new("RGB", (image_size_x, image_size_y))
         pixels = image.load()
         maze = [[0 for _ in range(column)] for _ in range(row)]
@@ -36,7 +43,6 @@ class MazeGenerator:
         # start the maze from a random cell
         cx = random.randint(0, column - 1)
         cy = random.randint(0, row - 1)
-        start = cx
         maze[cy][cx] = 1
         stack = [(cx, cy, 0)]  # stack element: (x, y, direction)
         while len(stack) > 0:
@@ -86,9 +92,9 @@ class MazeGenerator:
         # paint the maze
         for ky in range(image_size_y):
             for kx in range(image_size_x):
-                if kx % (image_size_x // column) == 0:
+                if kx % (image_size_x / column) < 1:
                     pixels[kx, ky] = (0, 0, 0)
-                elif ky % (image_size_y // row) == 0:
+                elif ky % (image_size_y / row) < 1:
                     pixels[kx, ky] = (0, 0, 0)
                 else:
                     pixels[kx, ky] = self.colors[maze[row * ky // image_size_y][column * kx // image_size_x]]
@@ -97,11 +103,10 @@ class MazeGenerator:
 
 labirinti_dir = "./labirinti"
 os.makedirs(labirinti_dir, exist_ok=True)
-row = 10
-column = 10
+row = 21
+column = 21
 maze_generator = MazeGenerator()
 maze, image = maze_generator.generate_maze(row, column, difficulty=1)
 image.save(os.path.join(labirinti_dir, "labirinto_{}x{}.png".format(row, column)), "PNG")
-f = open(os.path.join(labirinti_dir, "labirinto_{}x{}.pl".format(row, column)), "w")
-f.write(maze_generator.maze_to_prolog(maze))
-f.close()
+with open(os.path.join(labirinti_dir, "labirinto_{}x{}.pl".format(row, column)), "w") as f:
+    f.write(maze_generator.maze_to_prolog(maze))

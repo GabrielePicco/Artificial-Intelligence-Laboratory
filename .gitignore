@@ -1,2 +1,8 @@
 
 Prolog/\.idea/
+
+*.pyc
+
+Prolog/labirinti/
+
+*.png

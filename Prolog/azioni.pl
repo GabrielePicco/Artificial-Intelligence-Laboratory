@@ -1,19 +1,28 @@
+precondizioni(pos(R,C)):-
+  num_righe(NR),
+  R > 0,
+  R =< NR,
+  num_colonne(NC),
+  C > 0,
+  C =< NC,
+  \+occupata(pos(R,C)).
+
 applicabile(est,pos(R,C)):-
   num_colonne(NC),
-  C<NC,
+  C < NC,
   C1 is C+1,
   \+occupata(pos(R,C1)).
 applicabile(ovest,pos(R,C)):-
-  C>1,
+  C > 1,
   C1 is C-1,
   \+occupata(pos(R,C1)).
 applicabile(sud,pos(R,C)):-
   num_righe(NR),
-  R<NR,
+  R < NR,
   R1 is R+1,
   \+occupata(pos(R1,C)).
 applicabile(nord,pos(R,C)):-
-  R>1,
+  R > 1,
   R1 is R-1,
   \+occupata(pos(R1,C)).
 

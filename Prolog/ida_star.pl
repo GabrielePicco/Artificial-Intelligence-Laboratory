@@ -1,11 +1,15 @@
 ida_star(Soluzione):-
     iniziale(S),
+    precondizioni(S),
     euristica(S,H),
     ida_star_aux(S,Soluzione,[S],H).
 
 ida_star_aux(S,Soluzione,Visitati,FSoglia):-
     nl,write(fsoglia=FSoglia),
     dfs_aux(S,Soluzione,Visitati,0,FSoglia),!.
+
+ida_star_aux(_,_,_,FSoglia):-
+    retract(fvalue(FSoglia)), false.
 
 ida_star_aux(S,Soluzione,Visitati,FSoglia):-
     min_nuova_FSoglia(FSoglia,NuovaFSoglia),

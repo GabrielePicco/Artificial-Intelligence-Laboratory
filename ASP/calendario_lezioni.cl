@@ -73,6 +73,6 @@ docente_insegna_materia(docEdFis,lab_palestra,educazione_fisica).
 2 {ore_materia_per_classe(O,C,palestra) : ora(O)} 2 :- classe(C).
 1 {ore_materia_per_classe(O,C,religione) : ora(O)} 1 :- classe(C).
 
-30 {assegnamento_ora(Doc,Aula,Ora,Giorno,Classe,Materia) : docente(Doc),aula(Aula),ora(Ora),giorno(Giorno),materia(Materia) } 30 :- classe(Classe).
+30 {assegnamento_ora(Classe, Giorno, Ora, Aula, Doc, Materia) : docente(Doc),aula(Aula),ora(Ora),giorno(Giorno),materia(Materia) } 30 :- classe(Classe).
 
 #show assegnamento_ora/6.

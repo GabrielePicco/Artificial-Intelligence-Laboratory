@@ -1,78 +1,77 @@
-% calendario settimanale delle lezioni di una scuola media (3 anni):
-% ad ogni insegnamento è associata un’aula o un laboratorio
-% ci sono otto aule: - lettere (2 aule),  - matematica, tecnologia, musica, inglese, spagnolo, religione
-% ci sono tre laboratori: arte, - scienze, educazione fisica (palestra)
-% ci sono due docenti per ciascuno dei seguenti insegnamenti: - lettere, - matematica,  -scienze;
-% vi è un unico docente per tutti gli altri insegnamenti;
-% ci sono due classi per ogni anno di corso, una a regime “tempo prolungato” ed una a regime “tempo normale”
-% il calendario delle lezioni, di 30 ore complessive, da distribuire
-% in 5 giorni (da lunedì a venerdì), 6 ore al giorno
-% la sezione A sia tempo prolungato
-% la sezione B sia tempo normale
-% le classi sono, pertanto: 1A, 1B, 2A, 2B, 3A, 3B
-%
-% ogni docente insegna una ed una sola materia, con
-% l’eccezione di matematica e scienze, ossia un docente 
-% incaricato di insegnare matematica risulterà anche
-% insegnante di scienze (non necessariamente per la stessa classe);
-%
-% per ogni classe, sono previste 10 ore di lettere, 4 di
-% matematica, 2 di scienze, 3 di inglese, 2 di spagnolo, 2
-% di musica, 2 di tecnologia, 2 di arte, 2 di educazione
-% fisica, 1 di religione.
+% Domain
 
-materia(lettere1;lettere2; matematica; tecnologia; musica; inglese; spagnolo; religione; educazione_fisica).
-
-aula_lettere(aula_lettere1; aula_lettere2).
-aula(aula_matematica; aula_tecnologia; aula_musica; aula_inglese; aula_spagnolo; aula_religione; lab_arte; lab_scienze; lab_palestra).
-
-docente_lettere(docLett1; docLett2).
-docente_matematica(docMate1; docMate2).
-docente_scienze(docSci1; docSci2).
-docente(docArte; docTec; docMus; docIng; docSpa; docRel; docEdFis).
-
+materia(lettere; matematica; tecnologia; musica; inglese; spagnolo; religione; educazione_fisica, scienze).
+aula(aula_matematica; aula_tecnologia; aula_musica; aula_inglese; aula_spagnolo; aula_religione; lab_arte; lab_scienze; palestra; aula_lettere1; aula_lettere2).
+docente(docArte; docTec; docMus; docIng; docSpa; docRel; docEdFis; docSci1; docSci2; docMate1; docMate2; docLett1; docLett2).
 classe(primaA; secondaA; terzaA; primaB; secondaB; terzaB).
 giorno(lun;mar;merc;giov;ven).
 ora(primaOra;secondaOra;terzaOra;quartaOra;quintaOra;sestaOra).
 
-% docente singolo insegna materia
-docente_insegna_materia(docTec,aula_tecnologia,tecnologia).
-docente_insegna_materia(docMus,aula_musica,musica).
-docente_insegna_materia(docIng,aula_inglese,inglese).
-docente_insegna_materia(docSpa,aula_spagnolo,spagnolo).
-docente_insegna_materia(docRel,aula_religione,religione).
-docente_insegna_materia(docArte,lab_arte,arte).
-docente_insegna_materia(docEdFis,lab_palestra,educazione_fisica).
+
+% Generate
+1 {assegnamento_ora(Classe, Giorno, Ora, Aula, Doc, Materia) : 
+               aula_materia(Materia,Aula), docente_insegna(Doc, Materia),
+                     giorno_lezione(Classe,Giorno), insegnamento_ora(Classe,Giorno, Ora, Materia)} 1 :- ora_lezione(Classe,Giorno,Ora).
+
+5 { giorno_lezione(Classe,Giorno) : giorno(Giorno)} 5 :- classe(Classe).
+6 { ora_lezione(Classe,Giorno,Ora) : ora(Ora)} 6 :- giorno_lezione(Classe,Giorno).
 
 
-% Per ogni materia c'è un docente che la insegna in un'aula
-% 1 {docente_insegna_materia(D,A,lettere1) : docente_lettere(D)} 1:- aula_lettere(A).
-% 1 {docente_insegna_materia(D,A,lettere2) : docente_lettere(D)} 1:- aula_lettere(A).
-1 {docente_insegna_materia(D,A,lettere1) : docente_lettere(D)} 1:- aula_lettere(A).
-1 {docente_insegna_materia(D,A,lettere2) : docente_lettere(D)} 1:- aula_lettere(A).
+10 {insegnamento_ora(Classe, Giorno, Ora, lettere) : ora(Ora), giorno(Giorno)} 10 :- classe(Classe).
+4 {insegnamento_ora(Classe, Giorno, Ora, matematica) : ora(Ora), giorno(Giorno)} 4 :- classe(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, scienze) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
+3 {insegnamento_ora(Classe, Giorno, Ora, inglese) : ora(Ora), giorno(Giorno)} 3 :- classe(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, spagnolo) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, musica) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, tecnologia) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, arte) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, educazione_fisica) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe). 
+1 {insegnamento_ora(Classe, Giorno, Ora, religione) : ora(Ora), giorno(Giorno)} 1 :- classe(Classe).
 
-1 {docente_insegna_materia(D,aula_matematica,matematica) : docente_matematica(D)} 1.
-1 {docente_insegna_materia(D,lab_scienze,scienze) : docente_matematica(D)} 1.
-1 {docente_insegna_materia(D,aula_matematica,matematica) : docente_scienze(D)} 1.
+
+% Define
+
+docente_insegna(docTec,tecnologia).
+docente_insegna(docMus,musica).
+docente_insegna(docIng,inglese).
+docente_insegna(docSpa,spagnolo).
+docente_insegna(docRel,religione).
+docente_insegna(docArte,arte).
+docente_insegna(docEdFis,educazione_fisica).
+docente_insegna(docMate1,matematica).
+docente_insegna(docMate2,matematica).
+docente_insegna(docMate1,scienze).
+docente_insegna(docMate2,scienze).
+docente_insegna(docSci1,scienze).
+docente_insegna(docSci2,scienze).
+docente_insegna(docSci1,matematica).
+docente_insegna(docSci2,matematica).
+docente_insegna(docLett1, lettere).
+docente_insegna(docLett2, lettere).
+
+aula_materia(matematica,aula_matematica).
+aula_materia(tecnologia,aula_tecnologia).
+aula_materia(lettere,aula_lettere1).
+aula_materia(lettere,aula_lettere2).
+aula_materia(musica,aula_musica).
+aula_materia(inglese,aula_inglese).
+aula_materia(spagnolo,aula_spagnolo).
+aula_materia(religione,aula_religione).
+aula_materia(arte,lab_arte).
+aula_materia(educazione_fisica,palestra).
+aula_materia(scienze,lab_scienze).
+
+% Test
 
 
+% una classe non può essere in due aule diverse contemporaneamente
+ :- assegnamento_ora(Classe, Giorno, Ora, Aula1, _, _), assegnamento_ora(Classe, Giorno, Ora, Aula2, _, _), Aula1 <> Aula2.
 
-% Per ogni giorno G ci sono 6 e solo 6 ore O di lezione *****
-6 {ore_lezione_per_giorno(O,G) : ora(O)} 6 :- giorno(G).
+% % Un'aula non può essere occupata da due classi diverse nello stesso giorno alla stessa ora
+:- assegnamento_ora(Classe1, Giorno, Ora, Aula, _, _), assegnamento_ora(Classe2, Giorno, Ora, Aula, _, _), Classe1 <> Classe2.
 
-% Per ogni classe C ci sono min X e max Y ore O di lezione della materia ----
-5 {ore_materia_per_classe(O,C,lettere1) : ora(O)} 5 :- classe(C).
-5 {ore_materia_per_classe(O,C,lettere2) : ora(O)} 5 :- classe(C).
-4 {ore_materia_per_classe(O,C,matematica) : ora(O)} 4 :- classe(C).
-2 {ore_materia_per_classe(O,C,scienze) : ora(O)} 2 :- classe(C).
-3 {ore_materia_per_classe(O,C,inglese) : ora(O)} 3 :- classe(C).
-2 {ore_materia_per_classe(O,C,spagnolo) : ora(O)} 2 :- classe(C).
-2 {ore_materia_per_classe(O,C,musica) : ora(O)} 2 :- classe(C).
-2 {ore_materia_per_classe(O,C,tecnologia) : ora(O)} 2 :- classe(C).
-2 {ore_materia_per_classe(O,C,arte) : ora(O)} 2 :- classe(C).
-2 {ore_materia_per_classe(O,C,palestra) : ora(O)} 2 :- classe(C).
-1 {ore_materia_per_classe(O,C,religione) : ora(O)} 1 :- classe(C).
-
-30 {assegnamento_ora(Classe, Giorno, Ora, Aula, Doc, Materia) : docente(Doc),aula(Aula),ora(Ora),giorno(Giorno),materia(Materia) } 30 :- classe(Classe).
+% Un docente non può essere in aule diverse o due classi diverse lo stesso giorno alla stessa ora
+:- assegnamento_ora(Classe1, Giorno, Ora, _, Doc, _), assegnamento_ora(Classe2, Giorno, Ora, _, Doc, _), Classe1 <> Classe2.
+% (primaA, lun, primaOra, aula_inglese, docIng, _), (secondaB, lun, primaOra, aula_musica, docIng, _) vieta questo caso
 
 #show assegnamento_ora/6.

@@ -2,16 +2,28 @@
 
 materia(lettere; matematica; tecnologia; musica; inglese; spagnolo; religione; educazione_fisica, scienze).
 aula(aula_matematica; aula_tecnologia; aula_musica; aula_inglese; aula_spagnolo; aula_religione; lab_arte; lab_scienze; palestra; aula_lettere1; aula_lettere2).
-docente(docArte; docTec; docMus; docIng; docSpa; docRel; docEdFis; docSci1; docSci2; docMate1; docMate2; docLett1; docLett2).
+docente(docArte; docTec; docMus; docIng; docSpa; docRel; docEdFis; docSci1; docSci2; docMate1; docMate2; docLett1; docLett2; docChimica; docRecMat; docEdCiv; docLabDisegno).
 classe(primaA; secondaA; terzaA; primaB; secondaB; terzaB).
 giorno(lun;mar;merc;giov;ven).
 ora(primaOra;secondaOra;terzaOra;quartaOra;quintaOra;sestaOra).
 
+ora_extra(prima_ora_extra; seconda_ora_extra).
+mensa(pausaMensa).
+materia_extra(chimica; recupero_matematica; educazione_civica; lab_disegno).
+
+docente_insegna_extra(docChimica, chimica).
+docente_insegna_extra(docRecMat, recupero_matematica).
+docente_insegna_extra(docEdCiv, educazione_civica).
+docente_insegna_extra(docLabDisegno, lab_disegno).
 
 % Generate
 1 {assegnamento_ora(Classe, Giorno, Ora, Aula, Doc, Materia) : 
                aula_materia(Materia,Aula), docente_insegna(Doc, Materia),
                      giorno_lezione(Classe,Giorno), insegnamento_ora(Classe,Giorno, Ora, Materia)} 1 :- ora_lezione(Classe,Giorno,Ora).
+
+ 2 {assegnamento_ora(primaA, Giorno, Ora, Aula, Doc, Materia) : aula(Aula), giorno_lezione(primaA,Giorno), docente_insegna_extra(Doc, Materia), ora_extra(Ora) } 2 :- giorno_lezione(primaA, Giorno).
+ 2 {assegnamento_ora(secondaA, Giorno, Ora, Aula, Doc, Materia) : aula(Aula), giorno_lezione(secondaA,Giorno), docente_insegna_extra(Doc, Materia), ora_extra(Ora) } 2 :- giorno_lezione(secondaA, Giorno).
+ 2 {assegnamento_ora(terzaA, Giorno, Ora, Aula, Doc, Materia) : aula(Aula), giorno_lezione(terzaA,Giorno), docente_insegna_extra(Doc, Materia), ora_extra(Ora) } 2 :- giorno_lezione(terzaA, Giorno).
 
 5 { giorno_lezione(Classe,Giorno) : giorno(Giorno)} 5 :- classe(Classe).
 6 { ora_lezione(Classe,Giorno,Ora) : ora(Ora)} 6 :- giorno_lezione(Classe,Giorno).

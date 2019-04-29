@@ -6,9 +6,17 @@ def generate_excel_from_solution(list_solution, file_name):
     writer = pd.ExcelWriter("{}.xlsx".format(file_name), engine="xlsxwriter")
     df = pd.DataFrame(index=range(len(list_solution)), columns=['Classe', 'Giorno', 'Ora', 'Aula', 'Doc', 'Materia'])
     for ind, s in enumerate(list_solution):
-        df.loc[ind] = s[s.index('(') + 1:-1].split(',')
+        row = s[s.index('(') + 1:-1].split(',')
+        if len(row) == 4:
+            row.append("")
+            row.append("")
+        df.loc[ind] = row
     for classe in df['Classe'].unique():
-        df[df['Classe'] == classe].to_excel(writer, sheet_name=classe, index=False)
+        df.Giorno = df.Giorno.astype("category")
+        df.Giorno.cat.set_categories(['lun', 'mar', 'merc', 'giov', 'ven'], inplace=True)
+        df.Ora = df.Ora.astype("category")
+        df.Ora.cat.set_categories(['prima_ora', 'seconda_ora', 'terza_ora', 'quarta_ora', 'quinta_ora', 'sesta_ora', 'settima_ora', 'ottava_ora', 'nona_ora'], inplace=True)
+        df[df['Classe'] == classe].sort_values(by=['Giorno', 'Ora']).to_excel(writer, sheet_name=classe, index=False)
     writer.save()
 
 

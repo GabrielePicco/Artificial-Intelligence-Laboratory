@@ -2,64 +2,99 @@
 
 materia(lettere; matematica; tecnologia; musica; inglese; spagnolo; religione; educazione_fisica, scienze).
 aula(aula_matematica; aula_tecnologia; aula_musica; aula_inglese; aula_spagnolo; aula_religione; lab_arte; lab_scienze; palestra; aula_lettere1; aula_lettere2).
-docente(docArte; docTec; docMus; docIng; docSpa; docRel; docEdFis; docSci1; docSci2; docMate1; docMate2; docLett1; docLett2; docChimica; docRecMat; docEdCiv; docLabDisegno).
-classe(primaA; secondaA; terzaA; primaB; secondaB; terzaB).
+docente(doc_arte; doc_tecnologia; doc_musica; doc_inglese; doc_spagnolo; doc_religione; doc_ed_fisica; doc_scienze_1; doc_scienze_2; doc_matematica_1; 
+      doc_matematica_2; doc_lettere_1; doc_lettere_2; doc_chimica; doc_rec_matematica; doc_ed_civica; doc_lab_disegno).
+classe_tempo_normale(prima_B; seconda_B; terza_B).
+classe_tempo_prolungato(prima_A; seconda_A; terza_A).
 giorno(lun;mar;merc;giov;ven).
-ora(primaOra;secondaOra;terzaOra;quartaOra;quintaOra;sestaOra).
+ora(prima_ora;seconda_ora;terza_ora;quarta_ora;quinta_ora;sesta_ora).
 
-ora_extra(prima_ora_extra; seconda_ora_extra).
-mensa(pausaMensa).
+ora_extra(ottava_ora; nona_ora).
 materia_extra(chimica; recupero_matematica; educazione_civica; lab_disegno).
+aula_extra(aula_chimica; aula_rec_matematica; aula_educazione_civica; aula_lab_disegno).
 
-docente_insegna_extra(docChimica, chimica).
-docente_insegna_extra(docRecMat, recupero_matematica).
-docente_insegna_extra(docEdCiv, educazione_civica).
-docente_insegna_extra(docLabDisegno, lab_disegno).
+ora_mensa(settima_ora).
+aula_mensa(mensa).
+
+docente_insegna_extra(doc_chimica, chimica).
+docente_insegna_extra(doc_scienze_1, chimica).
+docente_insegna_extra(doc_scienze_2, chimica).
+docente_insegna_extra(doc_rec_matematica, recupero_matematica).
+docente_insegna_extra(doc_matematica_1, recupero_matematica).
+docente_insegna_extra(doc_matematica_2, recupero_matematica).
+docente_insegna_extra(doc_ed_civica, educazione_civica).
+docente_insegna_extra(doc_lab_disegno, lab_disegno).
+docente_insegna_extra(doc_arte, lab_disegno).
+
+aula_materia_extra(chimica, aula_chimica).
+aula_materia_extra(recupero_matematica, aula_rec_matematica).
+aula_materia_extra(educazione_civica, aula_educazione_civica).
+aula_materia_extra(lab_disegno, aula_lab_disegno).
 
 % Generate
+
 1 {assegnamento_ora(Classe, Giorno, Ora, Aula, Doc, Materia) : 
                aula_materia(Materia,Aula), docente_insegna(Doc, Materia),
-                     giorno_lezione(Classe,Giorno), insegnamento_ora(Classe,Giorno, Ora, Materia)} 1 :- ora_lezione(Classe,Giorno,Ora).
+                     giorno_lezione(Classe,Giorno), insegnamento_ora(Classe,Giorno, Ora, Materia)} 1 :- ora_lezione(Classe,Giorno,Ora). 
 
- 2 {assegnamento_ora(primaA, Giorno, Ora, Aula, Doc, Materia) : aula(Aula), giorno_lezione(primaA,Giorno), docente_insegna_extra(Doc, Materia), ora_extra(Ora) } 2 :- giorno_lezione(primaA, Giorno).
- 2 {assegnamento_ora(secondaA, Giorno, Ora, Aula, Doc, Materia) : aula(Aula), giorno_lezione(secondaA,Giorno), docente_insegna_extra(Doc, Materia), ora_extra(Ora) } 2 :- giorno_lezione(secondaA, Giorno).
- 2 {assegnamento_ora(terzaA, Giorno, Ora, Aula, Doc, Materia) : aula(Aula), giorno_lezione(terzaA,Giorno), docente_insegna_extra(Doc, Materia), ora_extra(Ora) } 2 :- giorno_lezione(terzaA, Giorno).
+1 {assegnamento_ora_extra(Classe, Giorno, Ora, Aula, Doc, Materia) : aula(Aula),giorno_lezione_extra(Classe,Giorno),
+      docente_insegna_extra(Doc, Materia), insegnamento_ora_extra(Classe, Giorno, Ora, Materia) } 1 :- ora_lezione_extra(Classe, Giorno, Ora).
 
-5 { giorno_lezione(Classe,Giorno) : giorno(Giorno)} 5 :- classe(Classe).
+1 {assegnamento_ora_mensa(Classe, Giorno, settima_ora, mensa)} 1 :- giorno_lezione_extra(Classe, Giorno).
+
+5 { giorno_lezione(Classe,Giorno) : giorno(Giorno)} 5 :- classe_tempo_normale(Classe).
+5 { giorno_lezione(Classe,Giorno) : giorno(Giorno)} 5 :- classe_tempo_prolungato(Classe).
 6 { ora_lezione(Classe,Giorno,Ora) : ora(Ora)} 6 :- giorno_lezione(Classe,Giorno).
 
+5 { giorno_lezione_extra(Classe,Giorno) : giorno(Giorno)} 5 :- classe_tempo_prolungato(Classe).
+2 { ora_lezione_extra(Classe,Giorno,Ora) : ora_extra(Ora)} 2 :- giorno_lezione_extra(Classe,Giorno).
 
-10 {insegnamento_ora(Classe, Giorno, Ora, lettere) : ora(Ora), giorno(Giorno)} 10 :- classe(Classe).
-4 {insegnamento_ora(Classe, Giorno, Ora, matematica) : ora(Ora), giorno(Giorno)} 4 :- classe(Classe).
-2 {insegnamento_ora(Classe, Giorno, Ora, scienze) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
-3 {insegnamento_ora(Classe, Giorno, Ora, inglese) : ora(Ora), giorno(Giorno)} 3 :- classe(Classe).
-2 {insegnamento_ora(Classe, Giorno, Ora, spagnolo) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
-2 {insegnamento_ora(Classe, Giorno, Ora, musica) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
-2 {insegnamento_ora(Classe, Giorno, Ora, tecnologia) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
-2 {insegnamento_ora(Classe, Giorno, Ora, arte) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe).
-2 {insegnamento_ora(Classe, Giorno, Ora, educazione_fisica) : ora(Ora), giorno(Giorno)} 2 :- classe(Classe). 
-1 {insegnamento_ora(Classe, Giorno, Ora, religione) : ora(Ora), giorno(Giorno)} 1 :- classe(Classe).
 
+10 {insegnamento_ora(Classe, Giorno, Ora, lettere) : ora(Ora), giorno(Giorno)} 10 :- classe_tempo_normale(Classe).
+10 {insegnamento_ora(Classe, Giorno, Ora, lettere) : ora(Ora), giorno(Giorno)} 10 :- classe_tempo_prolungato(Classe).
+4 {insegnamento_ora(Classe, Giorno, Ora, matematica) : ora(Ora), giorno(Giorno)} 4 :- classe_tempo_normale(Classe).
+4 {insegnamento_ora(Classe, Giorno, Ora, matematica) : ora(Ora), giorno(Giorno)} 4 :- classe_tempo_prolungato(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, scienze) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_normale(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, scienze) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_prolungato(Classe).
+3 {insegnamento_ora(Classe, Giorno, Ora, inglese) : ora(Ora), giorno(Giorno)} 3 :- classe_tempo_normale(Classe).
+3 {insegnamento_ora(Classe, Giorno, Ora, inglese) : ora(Ora), giorno(Giorno)} 3 :- classe_tempo_prolungato(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, spagnolo) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_normale(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, spagnolo) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_prolungato(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, musica) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_normale(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, musica) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_prolungato(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, tecnologia) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_normale(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, tecnologia) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_prolungato(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, arte) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_normale(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, arte) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_prolungato(Classe).
+2 {insegnamento_ora(Classe, Giorno, Ora, educazione_fisica) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_normale(Classe). 
+2 {insegnamento_ora(Classe, Giorno, Ora, educazione_fisica) : ora(Ora), giorno(Giorno)} 2 :- classe_tempo_prolungato(Classe). 
+1 {insegnamento_ora(Classe, Giorno, Ora, religione) : ora(Ora), giorno(Giorno)} 1 :- classe_tempo_normale(Classe).
+1 {insegnamento_ora(Classe, Giorno, Ora, religione) : ora(Ora), giorno(Giorno)} 1 :- classe_tempo_prolungato(Classe).
+
+4 {insegnamento_ora_extra(Classe, Giorno, Ora, recupero_matematica): ora_extra(Ora), giorno(Giorno)} 4:-classe_tempo_prolungato(Classe).
+2 {insegnamento_ora_extra(Classe, Giorno, Ora, chimica): ora_extra(Ora), giorno(Giorno)} 2:-classe_tempo_prolungato(Classe).
+2 {insegnamento_ora_extra(Classe, Giorno, Ora, educazione_civica): ora_extra(Ora), giorno(Giorno)} 2:-classe_tempo_prolungato(Classe).
+2 {insegnamento_ora_extra(Classe, Giorno, Ora, lab_disegno): ora_extra(Ora), giorno(Giorno)} 2:-classe_tempo_prolungato(Classe).
 
 % Define
 
-docente_insegna(docTec,tecnologia).
-docente_insegna(docMus,musica).
-docente_insegna(docIng,inglese).
-docente_insegna(docSpa,spagnolo).
-docente_insegna(docRel,religione).
-docente_insegna(docArte,arte).
-docente_insegna(docEdFis,educazione_fisica).
-docente_insegna(docMate1,matematica).
-docente_insegna(docMate2,matematica).
-docente_insegna(docMate1,scienze).
-docente_insegna(docMate2,scienze).
-docente_insegna(docSci1,scienze).
-docente_insegna(docSci2,scienze).
-docente_insegna(docSci1,matematica).
-docente_insegna(docSci2,matematica).
-docente_insegna(docLett1, lettere).
-docente_insegna(docLett2, lettere).
+docente_insegna(doc_tecnologia,tecnologia).
+docente_insegna(doc_musica,musica).
+docente_insegna(doc_inglese,inglese).
+docente_insegna(doc_spagnolo,spagnolo).
+docente_insegna(doc_religione,religione).
+docente_insegna(doc_arte,arte).
+docente_insegna(doc_ed_fisica,educazione_fisica).
+docente_insegna(doc_matematica_1,matematica).
+docente_insegna(doc_matematica_2,matematica).
+docente_insegna(doc_matematica_1,scienze).
+docente_insegna(doc_matematica_2,scienze).
+docente_insegna(doc_scienze_1,scienze).
+docente_insegna(doc_scienze_2,scienze).
+docente_insegna(doc_scienze_1,matematica).
+docente_insegna(doc_scienze_2,matematica).
+docente_insegna(doc_lettere_1,lettere).
+docente_insegna(doc_lettere_2,lettere).
 
 aula_materia(matematica,aula_matematica).
 aula_materia(tecnologia,aula_tecnologia).
@@ -86,4 +121,12 @@ aula_materia(scienze,lab_scienze).
 :- assegnamento_ora(Classe1, Giorno, Ora, _, Doc, _), assegnamento_ora(Classe2, Giorno, Ora, _, Doc, _), Classe1 <> Classe2.
 % (primaA, lun, primaOra, aula_inglese, docIng, _), (secondaB, lun, primaOra, aula_musica, docIng, _) vieta questo caso
 
+:- assegnamento_ora_extra(Classe1, Giorno, Ora, _, Doc, _), assegnamento_ora_extra(Classe2, Giorno, Ora, _, Doc, _), Classe1 <> Classe2.
+
+ :- assegnamento_ora_extra(Classe1, Giorno, Ora, Aula, _, _), assegnamento_ora_extra(Classe2, Giorno, Ora, Aula, _, _), Classe1 <> Classe2.
+
+
+
+#show assegnamento_ora_extra/6.
 #show assegnamento_ora/6.
+% #show assegnamento_ora_mensa/4.

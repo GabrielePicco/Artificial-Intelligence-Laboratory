@@ -33,3 +33,5 @@ occupata(pos(15,9)).
 iniziale(pos(10,10)).
 
 finale(pos(20,20)).
+finale(pos(18,18)).
+

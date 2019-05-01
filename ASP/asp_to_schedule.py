@@ -22,7 +22,7 @@ def generate_excel_from_solution(list_solution, file_name):
 
 num_solution = input("Numero Soluzioni: ")
 asp_calendar_path = "./calendario_lezioni.cl"
-runthis = "/Applications/clingo-5.3.0-macos-x86_64/clingo --verbose=0 {} {}".format(asp_calendar_path, num_solution)
+runthis = "/Applications/clingo-5.3.0-macos-x86_64/clingo --verbose=0 --warn=no-global-variable {} {}".format(asp_calendar_path, num_solution)
 osstdout = subprocess.Popen(runthis, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True)
 solution = osstdout.communicate()[0].strip()
 return_code = osstdout.returncode

@@ -14,7 +14,6 @@ classe_tempo_prolungato(prima_A; seconda_A; terza_A).
 giorno(lun;mar;merc;giov;ven).
 
 ora(prima_ora;seconda_ora;terza_ora;quarta_ora;quinta_ora;sesta_ora).
-ora_mensa(settima_ora).
 ora_extra(ottava_ora; nona_ora).
 
 aula_materia(matematica,aula_matematica).
@@ -103,9 +102,12 @@ docente_insegna_extra(doc_arte, lab_disegno).
 % Un docente non può essere in aule diverse o due classi diverse lo stesso giorno alla stessa ora
 :- assegnamento_ora(Classe1, Giorno, Ora, _, Doc, _), assegnamento_ora(Classe2, Giorno, Ora, _, Doc, _), Classe1 <> Classe2.
 
+% Una classe non può avere due docenti diversi per la stessa materia
 :- assegnamento_ora(Classe, _, _, _, Doc1, Materia), assegnamento_ora(Classe, _, _, _, Doc2, Materia), Doc1 <> Doc2.
 
-%:- 3 { assegnamento_ora(prima_A, lun, _, _, _, lettere) }.
+% Una classe non può avere più di 2 ore per giorno della stessa materia
+conteggio_ore_materia(Classe, Giorno, Materia, N) :- N = #count { (Classe,Giorno,Ora,Materia)  : assegnamento_ora(Classe, Giorno, Ora, _, _, Materia) }, classe(Classe), giorno(Giorno), materia(Materia).
+:-conteggio_ore_materia(Classe, Giorno, Materia, N), N > 2.
 
 #show assegnamento_ora/6.
 #show assegnamento_ora_mensa/4.

@@ -16,6 +16,15 @@ giorno(lun;mar;merc;giov;ven).
 ora(prima_ora;seconda_ora;terza_ora;quarta_ora;quinta_ora;sesta_ora).
 ora_extra(ottava_ora; nona_ora).
 
+ora_successiva(prima_ora,seconda_ora).
+ora_successiva(seconda_ora,terza_ora).
+ora_successiva(terza_ora,quarta_ora).
+ora_successiva(quinta_ora,sesta_ora).
+ora_successiva(sesta_ora,settima_ora).
+ora_successiva(settima_ora,ottava_ora).
+ora_successiva(ottava_ora,nona_ora).
+ora_precedente(Ora2,Ora1):-ora_successiva(Ora1,Ora2).
+
 aula_materia(matematica,aula_matematica).
 aula_materia(tecnologia,aula_tecnologia).
 aula_materia(lettere,aula_lettere1).
@@ -108,6 +117,9 @@ docente_insegna_extra(doc_arte, lab_disegno).
 % Una classe non può avere più di 2 ore per giorno della stessa materia
 conteggio_ore_materia(Classe, Giorno, Materia, N) :- N = #count { (Classe,Giorno,Ora,Materia)  : assegnamento_ora(Classe, Giorno, Ora, _, _, Materia) }, classe(Classe), giorno(Giorno), materia(Materia).
 :-conteggio_ore_materia(Classe, Giorno, Materia, N), N > 2.
+
+% Per comodità del professore, se una stessa classe ha due ore di una materia in un giorno, le ore devono essere consecutive
+:-conteggio_ore_materia(Classe, Giorno, Materia, N), N = 2, assegnamento_ora(Classe, Giorno, Ora1, _, _, Materia), assegnamento_ora(Classe, Giorno, Ora2, _, _, Materia), not ora_precedente(Ora1,Ora2), not ora_successiva(Ora1,Ora2), Ora1 <> Ora2.
 
 #show assegnamento_ora/6.
 #show assegnamento_ora_mensa/4.

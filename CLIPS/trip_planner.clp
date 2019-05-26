@@ -208,7 +208,11 @@
    (slot lat (default ?NONE) (type FLOAT))
    (slot long (default ?NONE) (type FLOAT))
    (multislot tourism-type (default ?NONE))
-   (slot certainty (default 0))
+)
+
+(deftemplate LOCATIONS::tourism-type-value
+   (slot turism (default ?NONE))
+   (slot rank (default ?NONE) (type FLOAT))
 )
 
 (deffacts LOCATIONS::location-lists
@@ -216,47 +220,47 @@
             (region liguria)
             (lat 44.169072)
             (long 8.343536)
-            (tourism-type balneare naturalistico montano)
+            (tourism-type balneare 5.0 naturalistico 3.8 montano 3.0)
   )
   (location (name sanremo)
             (region liguria)
             (lat 43.821414)
             (long 7.786561)
-            (tourism-type balneare culturale enogastronomico)
+            (tourism-type balneare 3.0 culturale 4.2 enogastronomico 4.7)
   )
   (location (name alassio)
             (region liguria)
             (lat 44.007917)
             (long 8.173044)
-            (tourism-type balneare enogastronomico)
+            (tourism-type balneare 5.0 enogastronomico 4.3)
   )
   (location (name laigueglia)
             (region liguria)
             (lat 43.974511)
             (long 8.158311)
-            (tourism-type balneare)
+            (tourism-type balneare 4.0)
   )
   (location (name torino)
             (region piemonte)
             (lat 45.066667)
             (long 7.7)
-            (tourism-type culturale enogastronomico)
+            (tourism-type culturale 4.8 enogastronomico 4.7)
   )
 )
 
 (defrule LOCATIONS::default-location-certainty
     (declare (salience 100))
-    ?l <- (location (name ?name) (region ?region) (certainty ?cl))
+    ?l <- (location (name ?name) (region ?region))
     =>
     (assert (attribute (name location-certainty) (value ?l) (certainty 0)))
 )
 
 (defrule LOCATIONS::update-turist-type-likelihood
   (attribute (name tourism-type) (value $? ?val $?) (certainty ?c))
-  ?l <- (location (name ?name) (region ?region) (tourism-type $? ?val $?))
+  ?l <- (location (name ?name) (region ?region) (tourism-type $? ?val&:(lexemep ?val) ?rank&:(floatp ?rank) $?))
   (attribute (name location-certainty) (value ?l) (certainty ?cl))
   =>
-  (assert (attribute (name update-location-cf) (value ?l) (certainty (/ (+ ?c ?cl) 3))))
+  (assert (attribute (name update-location-cf) (value ?l) (certainty (/ (+ ?c ?cl (* ?rank 20)) 4))))
 )
 
 (defrule LOCATIONS::update-region-likelihood

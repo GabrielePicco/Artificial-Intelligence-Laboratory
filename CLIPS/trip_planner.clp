@@ -51,7 +51,7 @@
   (declare (salience 10000))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS LOCATIONS UPDATE-LOCATIONS GENERATE-PATH CHOOSE-QUALITIES WINES PRINT-RESULTS))
+  (focus QUESTIONS LOCATIONS UPDATE-LOCATIONS GENERATE-PATH OPTMIZE-PATH CHOOSE-QUALITIES WINES PRINT-RESULTS))
 
 (defrule MAIN::combine-certainties ""
   (declare (salience 100)
@@ -169,7 +169,7 @@
 
 ;;* DEFAULTS      
   (attribute (name regions) (value) (certainty 50.0))
-  (attribute (name number-locations) (value 1) (certainty 50.0))
+  (attribute (name number-locations) (value 2) (certainty 50.0))
   (attribute (name max-km) (value 100) (certainty 50.0))
 )
 
@@ -193,13 +193,20 @@
     ) 
    (bind ?c (* 2 (atan (/ (sqrt ?a) (sqrt (- 1 ?a))))))
    (bind ?d (* ?r ?c))
-   ?d)
+   ?d
+)
+
+(deffunction LOCATIONS::distance-to-certainty (?distance)
+   (bind ?c (/ 800 ?distance))
+   (if (> ?c 100) then (bind ?c 100))
+   ?c
+)
 
 (deftemplate LOCATIONS::location
    (slot name (default ?NONE))
    (slot region (default ?NONE))
-   (slot lat)
-   (slot long)
+   (slot lat (default ?NONE) (type FLOAT))
+   (slot long (default ?NONE) (type FLOAT))
    (multislot tourism-type (default ?NONE))
    (slot certainty (default 0))
 )
@@ -208,7 +215,7 @@
   (location (name finale-ligure)
             (region liguria)
             (lat 44.169072)
-            (long 8.343536°)
+            (long 8.343536)
             (tourism-type balneare naturalistico montano)
   )
   (location (name sanremo)
@@ -292,18 +299,55 @@
   )
   (attribute (name number-locations) (value ?nl) (certainty ?clnl))
   =>
-  (assert (attribute (name trip-locations) (value ?nl 0 ?l) (certainty (/ (+ ?cl ?clnl) 2))))
+  (assert (attribute (name trip-locations-intention) (value ?nl 0 ?l) (certainty (/ (+ ?cl ?clnl) 2))))
 )
 
 (defrule GENERATE-PATH::expand-path
-  ?l1 <- (location (?lat1) (?long1))
-  (attribute (name trip-locations) (value ?nl ?distance ?l1) (certainty ?cl))
-  ?l2 <- (location (?lat2) (?long2))
+  ?l1 <- (location (lat ?lat1) (long ?long1))
+  (attribute (name trip-locations-intention) (value ?nl ?distance $?prec ?l1) (certainty ?cl))
+  ?l2 <- (location (lat ?lat2) (long ?long2))
   (attribute (name location-certainty) (value ?l2) (certainty ?lc2))
-  (test (> ?nl 0))
+  (test (> ?nl 1))
   (test (neq ?l1 ?l2))
+  (test (not (subsetp (create$ ?l2) (create$ ?prec))))
+  (attribute (name max-km) (value ?max-km) (certainty ?cl-max-km))
+  (test (< (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?max-km))
   =>
-  (assert (attribute (name trip-locations) (value (- ?nl 1) ?distance ?l1 ?l2) (certainty (+ ?cl ?lc2))))
+  (assert (attribute (name trip-locations-intention) 
+                     (value (- ?nl 1) 
+                     (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?prec ?l1 ?l2) 
+                     (certainty (+ ?cl (/ (+ ?lc2 (distance-to-certainty (calculate-distance ?lat1 ?long1 ?lat2 ?long2))) 2)))))
+)
+
+;;*******************
+;;* OPTIMIZE PATH *
+;;*******************
+
+
+(defmodule OPTMIZE-PATH (import LOCATIONS ?ALL) (import MAIN ?ALL))
+
+(defrule OPTMIZE-PATH::remove-partial-path
+  (declare (salience 100))
+  (attribute (name number-locations) (value ?nl))
+  ?a <- (attribute (name trip-locations-intention) (value ?nlp&:(> ?nlp 1) $?))
+  =>
+  (retract ?a)
+)
+
+(defrule OPTMIZE-PATH::rescale-certainty
+  ?a <- (attribute (name trip-locations-intention) (value ?nl ?d $?lcs) (certainty ?c))
+  =>
+  (retract ?a)
+  (assert (attribute (name trip-locations) (value ?nl ?d ?lcs) (certainty (/ ?c (length$ ?lcs)))))
+)
+
+(defrule OPTMIZE-PATH::delete-suboptim-path
+  ?a <- (attribute (name trip-locations) (value ?nl ?d1 $?lcs1))
+  ?b <- (attribute (name trip-locations) (value ?nl ?d2&:(> ?d2 ?d1) $?lcs2)) ; >= for removing simmetrical path
+  (test (subsetp (create$ ?lcs1) (create$ ?lcs2)))
+  (test (neq ?a ?b))
+  =>
+  (retract ?b)
 )
 
  

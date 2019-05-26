@@ -13,11 +13,21 @@
 ;;* DEFFUNCTIONS *
 ;;****************
 
-(deffunction MAIN::ask-question (?question ?allowed-values)
+(deffunction MAIN::ask-question (?question ?allowed-values ?domain)
    (printout t ?question)
    (bind ?answer (explode$ (readline)))
    (if (lexemep ?answer) then (bind ?answer (lowcase ?answer)))
-   (while (not (subsetp ?answer ?allowed-values)) do
+   (while (not (or (subsetp ?answer ?allowed-values) 
+                    (and 
+                        (eq ?domain "positive-integer")
+                        (and 
+                            (integerp (string-to-field (implode$ (create$ ?answer))))
+                            (> (string-to-field (implode$ (create$ ?answer))) 0)
+                        )
+                    )
+                )
+          ) 
+    do
       (printout t ?question)
       (bind ?answer (explode$ (readline)))
       (if (lexemep ?answer) then (bind ?answer (lowcase ?answer))))
@@ -41,7 +51,7 @@
   (declare (salience 10000))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS LOCATIONS UPDATE-LOCATIONS CHOOSE-QUALITIES WINES PRINT-RESULTS))
+  (focus QUESTIONS LOCATIONS UPDATE-LOCATIONS GENERATE-PATH CHOOSE-QUALITIES WINES PRINT-RESULTS))
 
 (defrule MAIN::combine-certainties ""
   (declare (salience 100)
@@ -63,6 +73,7 @@
    (slot attribute (default ?NONE))
    (slot the-question (default ?NONE))
    (multislot valid-answers (default ?NONE))
+   (slot valid-answers-domain (default "any"))
    (slot already-asked (default FALSE))
    (multislot precursors (default ?DERIVE)))
    
@@ -71,10 +82,11 @@
                    (precursors)
                    (the-question ?the-question)
                    (attribute ?the-attribute)
+                   (valid-answers-domain ?domain)
                    (valid-answers $?valid-answers))
    =>
    (assert (attribute-intention (name ?the-attribute)
-                      (value (ask-question ?the-question ?valid-answers)))))
+                      (value (ask-question ?the-question ?valid-answers ?domain)))))
 
 
 (defrule QUESTIONS::verify-attribute-intention-valid
@@ -95,8 +107,25 @@
   (declare (salience 100))
   ?rem <- (attribute-intention (name ?rel) (value $?vals&:(= (length$ ?vals) 0)) (certainty ?per))
   =>
-  (retract ?rem))
+  (retract ?rem)
+)
 
+(defrule QUESTIONS::delete-attribute-default
+  (declare (salience 100))
+  ?rem1 <- (attribute (name ?rel) (value $?vals1&:(= (length$ ?vals1) 0)))
+  ?rem2 <- (attribute (name ?rel) (value $?vals2&:(> (length$ ?vals2) 0)))
+  =>
+  (retract ?rem1)
+)
+
+(defrule QUESTIONS::delete-less-specific-default
+  (declare (salience 100))
+  ?rem1 <- (attribute (name ?nm) (certainty ?val1))
+  ?rem2 <- (attribute (name ?nm) (certainty ?val2&:(>= ?val2 ?val1)))
+  (test (neq ?rem1 ?rem2))
+  =>
+  (retract ?rem1)
+)
 
 (defrule QUESTIONS::precursor-is-satisfied
    ?f <- (question (already-asked FALSE)
@@ -129,6 +158,19 @@
   (question (attribute regions)
             (the-question "Quali sono le regioni in cui vuole effettuare il viaggio? ")
             (valid-answers piemonte liguria valle_daosta lombardia emilia_romagna unknown))
+  (question (attribute number-locations)
+            (the-question "Quante località si vuole visitare durante il viaggio? ")
+            (valid-answers)
+            (valid-answers-domain "positive-integer"))
+  (question (attribute max-km)
+            (the-question "Quanti kilometri massimi vuole percorrere durante il viaggio? ")
+            (valid-answers)
+            (valid-answers-domain "positive-integer"))
+
+;;* DEFAULTS      
+  (attribute (name regions) (value) (certainty 50.0))
+  (attribute (name number-locations) (value 1) (certainty 50.0))
+  (attribute (name max-km) (value 100) (certainty 50.0))
 )
 
 ;;*******************
@@ -161,6 +203,10 @@
   (location (name laigueglia)
             (region liguria)
             (tourism-type balneare)
+  )
+  (location (name torino)
+            (region piemonte)
+            (tourism-type culturale enogastronomico)
   )
 )
 
@@ -200,6 +246,37 @@
   =>
   (retract ?up)
   (modify ?lc (certainty (/ (- (* 100 (+ ?c ?cl)) (* ?c ?cl)) 100)))
+)
+
+;;*******************
+;;* GENERATE PATH *
+;;*******************
+
+
+(defmodule GENERATE-PATH (import LOCATIONS ?ALL) (import MAIN ?ALL))
+
+(defrule GENERATE-PATH::generate-possible-path
+  ?l <- (location (name ?name) (region ?region))
+  ?lc <- (attribute (name location-certainty) (value ?l) (certainty ?cl))
+  (attribute (name regions) (value $?rgs) (certainty ?cr))
+  (or 
+    (test (subsetp (create$ ?region) (create$ ?rgs)))
+    (test (= (length$ ?rgs) 0))
+  )
+  (attribute (name number-locations) (value ?nl) (certainty ?clnl))
+  =>
+  (assert (attribute (name trip-locations) (value ?nl 0 ?l) (certainty (/ (+ ?cl ?clnl) 2))))
+)
+
+(defrule GENERATE-PATH::expand-path
+  ?l1 <- (location (name ?name) (region ?region))
+  (attribute (name trip-locations) (value ?nl ?distance ?l1) (certainty ?cl))
+  ?l2 <- (location (name ?name) (region ?region))
+  (attribute (name location-certainty) (value ?l2) (certainty ?lc2))
+  (test (> ?nl 0))
+  (test (neq ?l1 ?l2))
+  =>
+  (assert (attribute (name trip-locations) (value (- ?nl 1) ?distance ?l1 ?l2) (certainty (+ ?cl ?lc2))))
 )
 
  

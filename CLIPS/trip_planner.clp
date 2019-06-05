@@ -51,7 +51,7 @@
   (declare (salience 10000))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS LOCATIONS UPDATE-LOCATIONS GENERATE-PATH OPTMIZE-PATH))
+  (focus QUESTIONS GENERATE-PATH OPTMIZE-PATH HOTEL))
 
 (defrule MAIN::combine-certainties ""
   (declare (salience 100)
@@ -169,9 +169,11 @@
 
 ;;* DEFAULTS      
   (attribute (name regions) (value) (certainty 50.0))
-  (attribute (name number-locations) (value 2) (certainty 50.0))
+  (attribute (name number-locations) (value 3) (certainty 50.0))
   (attribute (name n-day) (value 4) (certainty 50.0))
+  (attribute (name n-people) (value 2) (certainty 50.0))
   (attribute (name max-km) (value 100) (certainty 50.0))
+  (attribute (name hotel-stars) (value 1 2 3) (certainty 50.0))
 )
 
 ;;*******************
@@ -195,6 +197,24 @@
    (bind ?c (* 2 (atan (/ (sqrt ?a) (sqrt (- 1 ?a))))))
    (bind ?d (* ?r ?c))
    ?d
+)
+
+(deffunction LOCATIONS::locality-fit (?loc-turism-type ?loc-region ?pref-turism-type ?pref-region)
+  (bind ?fit 0)
+  (progn$ 
+    (?field (create$ ?loc-turism-type))
+    (if (lexemep ?field) 
+      then (bind ?t-type ?field)
+    )
+    (if (floatp ?field) 
+      then 
+      (if (subsetp (create$ ?t-type) (create$ ?pref-turism-type)) 
+        then (bind ?fit (+ ?fit ?field))
+      )
+    )
+  )
+  (if (subsetp (create$ ?loc-region) (create$ ?pref-region)) then (bind ?fit (+ ?fit 5)))
+  ?fit
 )
 
 (deffunction LOCATIONS::distance-to-certainty (?distance)
@@ -311,32 +331,29 @@
 
 (defrule GENERATE-PATH::generate-possible-path
   ?l <- (location (name ?name) (region ?region))
-  ?lc <- (attribute (name location-certainty) (value ?l) (certainty ?cl))
   (attribute (name regions) (value $?rgs) (certainty ?cr))
   (or 
     (test (subsetp (create$ ?region) (create$ ?rgs)))
     (test (= (length$ ?rgs) 0))
   )
-  (attribute (name number-locations) (value ?nl) (certainty ?clnl))
+  (attribute (name number-locations) (value ?nl))
   =>
-  (assert (attribute (name trip-locations-intention) (value ?nl 0 ?l) (certainty (/ (+ ?cl ?clnl) 2))))
+  (assert (attribute (name trip-locations) (value ?nl 0 ?l)))
 )
 
 (defrule GENERATE-PATH::expand-path
   ?l1 <- (location (lat ?lat1) (long ?long1))
-  (attribute (name trip-locations-intention) (value ?nl ?distance $?prec ?l1) (certainty ?cl))
+  (attribute (name trip-locations) (value ?nl ?distance $?prec ?l1))
   ?l2 <- (location (lat ?lat2) (long ?long2))
-  (attribute (name location-certainty) (value ?l2) (certainty ?lc2))
   (test (> ?nl 1))
   (test (neq ?l1 ?l2))
   (test (not (subsetp (create$ ?l2) (create$ ?prec))))
-  (attribute (name max-km) (value ?max-km) (certainty ?cl-max-km))
+  (attribute (name max-km) (value ?max-km))
   (test (< (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?max-km))
   =>
-  (assert (attribute (name trip-locations-intention) 
+  (assert (attribute (name trip-locations) 
                      (value (- ?nl 1) 
-                     (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?prec ?l1 ?l2) 
-                     (certainty (+ ?cl (/ (+ ?lc2 (distance-to-certainty (calculate-distance ?lat1 ?long1 ?lat2 ?long2))) 2)))))
+                     (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?prec ?l1 ?l2)))
 )
 
 ;;*******************
@@ -349,34 +366,110 @@
 (defrule OPTMIZE-PATH::remove-partial-path
   (declare (salience 100))
   (attribute (name number-locations) (value ?nl))
-  ?a <- (attribute (name trip-locations-intention) (value ?nlp&:(> ?nlp 1) $?))
+  ?a <- (attribute (name trip-locations) (value ?nlp&:(> ?nlp 1) $?))
   =>
   (retract ?a)
-)
-
-(defrule OPTMIZE-PATH::rescale-certainty
-  ?a <- (attribute (name trip-locations-intention) (value ?nl ?d $?lcs) (certainty ?c))
-  =>
-  (retract ?a)
-  (assert (attribute (name trip-locations) (value ?nl ?d ?lcs) (certainty (/ ?c (length$ ?lcs)))))
 )
 
 (defrule OPTMIZE-PATH::delete-suboptim-path
+  (declare (salience 10))
   ?a <- (attribute (name trip-locations) (value ?nl ?d1 $?lcs1))
-  ?b <- (attribute (name trip-locations) (value ?nl ?d2&:(> ?d2 ?d1) $?lcs2)) ; >= for removing simmetrical path
+  ?b <- (attribute (name trip-locations) (value ?nl ?d2 $?lcs2))
+  (test (>= ?d2 ?d1))
   (test (subsetp (create$ ?lcs1) (create$ ?lcs2)))
   (test (neq ?a ?b))
   =>
   (retract ?b)
 )
 
-;(defrule OPTMIZE-PATH::create-variants
-;  (declare (salience -10))
-;  (attribute (name trip-locations) (value ?x ?d $?lcs) (certainty ?c))
-;  
-;  =>
-;  (retract ?b)
-;)
+(defrule OPTMIZE-PATH::generate-path-id
+  ?a <- (attribute (name trip-locations) (value ?nl&:(integerp ?nl) ?d1 $?lcs1))
+  =>
+  (retract ?a)
+  (assert (attribute (name trip-locations-id) (value (gensym) ?d1 ?lcs1)))
+)
 
+;;*******************
+;;* HOTEL
+;;*******************
+
+
+(defmodule HOTEL (import MAIN ?ALL) (import LOCATIONS ?ALL) (export ?ALL))
+(deftemplate HOTEL::hotel
+   (slot name (default ?NONE))
+   (slot city (default ?NONE))
+   (slot region (default ?NONE))
+   (slot availability (default ?NONE) (type INTEGER))
+   (slot stars (default ?NONE) (type INTEGER) (range 1 4))
+)
+
+(deffacts HOTEL::hotels-lists
+  (hotel (name "lido resort")
+         (city finale-ligure)
+         (region liguria)
+         (availability 30)
+         (stars 4)
+  )
+  (hotel (name "lido mare")
+         (city finale-ligure)
+         (region liguria)
+         (availability 40)
+         (stars 4)
+  )
+  (hotel (name "lido resort")
+         (city alassio)
+         (region liguria)
+         (availability 30)
+         (stars 2)
+  )
+  (hotel (name "lido resort")
+         (city laigueglia)
+         (region liguria)
+         (availability 30)
+         (stars 3)
+  )
+  (hotel (name "lido resort")
+         (city torino)
+         (region piemonte)
+         (availability 30)
+         (stars 3)
+  )
+  (hotel (name "lido resort")
+         (city sanremo)
+         (region liguria)
+         (availability 30)
+         (stars 2)
+  )
+)
+
+(defrule HOTEL::generate-hotel-assignment
+  (declare (salience 100))
+  ?l <- (location (name ?city) (region ?region))
+  (attribute (name trip-locations-id) (value ?id ?d $? ?l $?))
+  (attribute (name n-people) (value ?np))
+  (attribute (name hotel-stars) (value $?stars))
+  ?h1 <- (hotel (city ?city) (region ?region) (stars ?s&:(subsetp (create$ ?s) (create$ ?stars))) (availability ?a&:(> ?a ?np)))
+  (not (hotel (city ?city) (region ?region) (stars ?s2&:(and (< ?s2 ?s) (subsetp (create$ ?s2) (create$ ?stars)))) (availability ?a2&:(> ?a2 ?np))))   ; hotel less stars, enough availability
+  (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (availability ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer availability
+  =>
+  (assert (attribute (name hotel-assignment) (value ?id ?l ?h1)))
+)
+
+(defrule HOTEL::generate-missing-hotel-assignment
+  ?l <- (location (name ?city) (region ?region))
+  (attribute (name trip-locations-id) (value ?id ?d $? ?l $?))
+  (attribute (name n-people) (value ?np))
+  (attribute (name hotel-stars) (value $?stars))
+  ?h1 <- (hotel (city ?city) (region ?region) (stars ?s) (availability ?a&:(> ?a ?np)))
+  (not (attribute (name hotel-assignment) (value ?id ?l ?h1))) ; not already assigned
+  (not (hotel (city ?city) (region ?region) (stars ?s2&:(< ?s2 ?s)) (availability ?a2&:(> ?a2 ?np))))   ; hotel less stars, enough availability
+  (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (availability ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer availability
+  =>
+  (assert (attribute (name hotel-assignment) (value ?id ?l ?h1)))
+)
+
+;;*******************
+;;* GENERATE TRIP *
+;;*******************
 
 

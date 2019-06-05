@@ -1,4 +1,3 @@
-
 ;;;======================================================
 ;;;   Trip Expert Problem
 ;;;
@@ -51,7 +50,7 @@
   (declare (salience 10000))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS GENERATE-PATH OPTMIZE-PATH HOTEL))
+  (focus QUESTIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP))
 
 (defrule MAIN::combine-certainties ""
   (declare (salience 100)
@@ -169,11 +168,13 @@
 
 ;;* DEFAULTS      
   (attribute (name regions) (value) (certainty 50.0))
+  (attribute (name tourism-type) (value) (certainty 50.0))
   (attribute (name number-locations) (value 3) (certainty 50.0))
-  (attribute (name n-day) (value 4) (certainty 50.0))
+  (attribute (name n-day) (value 15) (certainty 50.0))
   (attribute (name n-people) (value 2) (certainty 50.0))
   (attribute (name max-km) (value 100) (certainty 50.0))
-  (attribute (name hotel-stars) (value 1 2 3) (certainty 50.0))
+  (attribute (name hotel-stars) (value 1 2 3 4) (certainty 50.0))
+  (attribute (name group-allow-double-room) (value TRUE) (certainty 50.0))
 )
 
 ;;*******************
@@ -199,7 +200,7 @@
    ?d
 )
 
-(deffunction LOCATIONS::locality-fit (?loc-turism-type ?loc-region ?pref-turism-type ?pref-region)
+(deffunction LOCATIONS::location-fit (?loc-turism-type ?loc-region ?pref-turism-type ?pref-region)
   (bind ?fit 0)
   (progn$ 
     (?field (create$ ?loc-turism-type))
@@ -386,7 +387,7 @@
   ?a <- (attribute (name trip-locations) (value ?nl&:(integerp ?nl) ?d1 $?lcs1))
   =>
   (retract ?a)
-  (assert (attribute (name trip-locations-id) (value (gensym) ?d1 ?lcs1)))
+  (assert (attribute (name trip-locations-assigmement) (value (gensym) ?d1 ?lcs1)))
 )
 
 ;;*******************
@@ -395,11 +396,23 @@
 
 
 (defmodule HOTEL (import MAIN ?ALL) (import LOCATIONS ?ALL) (export ?ALL))
+
+(deffunction HOTEL::room-price (?stars)
+   (bind ?p (+ 50 (* 25 ?stars)))
+   ?p
+)
+
+(deffunction HOTEL::rooms-number (?people ?allow-double)
+   (bind ?p ?people )
+   (if (eq ?allow-double TRUE) then (bind ?p (+ (div ?people 2) (mod ?people 2))))
+   ?p
+)
+
 (deftemplate HOTEL::hotel
    (slot name (default ?NONE))
    (slot city (default ?NONE))
    (slot region (default ?NONE))
-   (slot availability (default ?NONE) (type INTEGER))
+   (slot rooms (default ?NONE) (type INTEGER))
    (slot stars (default ?NONE) (type INTEGER) (range 1 4))
 )
 
@@ -407,69 +420,180 @@
   (hotel (name "lido resort")
          (city finale-ligure)
          (region liguria)
-         (availability 30)
-         (stars 4)
+         (rooms 30)
+         (stars 3)
   )
   (hotel (name "lido mare")
          (city finale-ligure)
          (region liguria)
-         (availability 40)
+         (rooms 40)
          (stars 4)
   )
   (hotel (name "lido resort")
          (city alassio)
          (region liguria)
-         (availability 30)
-         (stars 2)
+         (rooms 30)
+         (stars 4)
   )
   (hotel (name "lido resort")
          (city laigueglia)
          (region liguria)
-         (availability 30)
-         (stars 3)
+         (rooms 30)
+         (stars 4)
   )
   (hotel (name "lido resort")
          (city torino)
          (region piemonte)
-         (availability 30)
+         (rooms 30)
          (stars 3)
   )
   (hotel (name "lido resort")
          (city sanremo)
          (region liguria)
-         (availability 30)
-         (stars 2)
+         (rooms 30)
+         (stars 4)
   )
 )
 
 (defrule HOTEL::generate-hotel-assignment
   (declare (salience 100))
   ?l <- (location (name ?city) (region ?region))
-  (attribute (name trip-locations-id) (value ?id ?d $? ?l $?))
+  (attribute (name trip-locations-assigmement) (value ?id ?d $? ?l $?))
   (attribute (name n-people) (value ?np))
+  (attribute (name group-allow-double-room) (value ?allow-double))
   (attribute (name hotel-stars) (value $?stars))
-  ?h1 <- (hotel (city ?city) (region ?region) (stars ?s&:(subsetp (create$ ?s) (create$ ?stars))) (availability ?a&:(> ?a ?np)))
-  (not (hotel (city ?city) (region ?region) (stars ?s2&:(and (< ?s2 ?s) (subsetp (create$ ?s2) (create$ ?stars)))) (availability ?a2&:(> ?a2 ?np))))   ; hotel less stars, enough availability
-  (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (availability ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer availability
+  ?h1 <- (hotel (city ?city) (region ?region) (stars ?s&:(subsetp (create$ ?s) (create$ ?stars))) (rooms ?a&:(> ?a (rooms-number ?np ?allow-double))))
+  (not (hotel (city ?city) (region ?region) (stars ?s2&:(and (< ?s2 ?s) (subsetp (create$ ?s2) (create$ ?stars)))) (rooms ?a2&:(> ?a2 (rooms-number ?np ?allow-double)))))   ; hotel less stars, enough rooms
+  (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (rooms ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer rooms
   =>
   (assert (attribute (name hotel-assignment) (value ?id ?l ?h1)))
 )
 
 (defrule HOTEL::generate-missing-hotel-assignment
   ?l <- (location (name ?city) (region ?region))
-  (attribute (name trip-locations-id) (value ?id ?d $? ?l $?))
+  (attribute (name trip-locations-assigmement) (value ?id ?d $? ?l $?))
   (attribute (name n-people) (value ?np))
   (attribute (name hotel-stars) (value $?stars))
-  ?h1 <- (hotel (city ?city) (region ?region) (stars ?s) (availability ?a&:(> ?a ?np)))
+  (attribute (name group-allow-double-room) (value ?allow-double))
+  ?h1 <- (hotel (city ?city) (region ?region) (stars ?s) (rooms ?a&:(> ?a (rooms-number ?np ?allow-double))))
   (not (attribute (name hotel-assignment) (value ?id ?l ?h1))) ; not already assigned
-  (not (hotel (city ?city) (region ?region) (stars ?s2&:(< ?s2 ?s)) (availability ?a2&:(> ?a2 ?np))))   ; hotel less stars, enough availability
-  (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (availability ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer availability
+  (not (hotel (city ?city) (region ?region) (stars ?s2&:(< ?s2 ?s)) (rooms ?a2&:(> ?a2 (rooms-number ?np ?allow-double)))))   ; hotel less stars, enough rooms
+  (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (rooms ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer rooms
   =>
   (assert (attribute (name hotel-assignment) (value ?id ?l ?h1)))
 )
+
 
 ;;*******************
 ;;* GENERATE TRIP *
 ;;*******************
 
+(defmodule TRIP (import MAIN ?ALL) (import LOCATIONS ?ALL) (import HOTEL ?ALL) (export ?ALL))
 
+(deftemplate TRIP::trip
+   (slot id (default ?NONE))
+   (multislot trip-plan (default ?NONE))
+   (slot moving-km (default ?NONE) (type FLOAT))
+)
+
+(defrule TRIP::generate-trip
+  ?tla <- (attribute (name trip-locations-assigmement) (value ?id ?d ?l $?lcs))
+  (not (trip (id ?id)))
+  (attribute (name hotel-assignment) (value ?id ?l ?h))
+  (attribute (name n-day) (value ?day))
+  (attribute (name number-locations) (value ?nl))
+  =>
+  (assert (trip (id ?id) (moving-km ?d) (trip-plan ?l ?h (+ (div ?day ?nl) (mod ?day ?nl)))))
+  (if (> (length$ ?lcs) 0)
+    then (modify ?tla (value ?id ?d ?lcs))
+    else (retract ?tla)
+  )
+)
+
+(defrule TRIP::complete-trip
+  ?tla <- (attribute (name trip-locations-assigmement) (value ?id ?d ?l $?lcs))
+  (attribute (name hotel-assignment) (value ?id ?l ?h))
+  ?trip <- (trip (id ?id) (trip-plan $?plan))
+  (attribute (name n-day) (value ?day))
+  (attribute (name number-locations) (value ?nl))
+  =>
+  (modify ?trip (trip-plan ?plan ?l ?h (div ?day ?nl)))
+  (if (> (length$ ?lcs) 0)
+    then (modify ?tla (value ?id ?d ?lcs))
+    else (retract ?tla)
+  )
+)
+
+(defrule TRIP::optimize-trip-left-to-rigth
+  ?h1 <- (hotel (stars ?stars-h1))
+  ?h2 <- (hotel (stars ?stars-h2))
+  ?l1 <- (location (region ?r1) (tourism-type $?turism-t-1))
+  ?l2 <- (location (region ?r2) (tourism-type $?turism-t-2))
+  ?trip <- (trip (trip-plan $?rbegin ?l1 ?h1 ?d1 $?rmiddle ?l2 ?h2 ?d2 $?rend))
+  (attribute (name n-day) (value ?day))
+  (attribute (name number-locations) (value ?nl))
+  (test (> ?d1 (div ?day (+ 1 ?nl))))
+  (attribute (name tourism-type) (value $?pref-types))
+  (attribute (name regions) (value $?pref-regions))
+  (test (or (and (< 
+                    (location-fit ?turism-t-1 ?r1 ?pref-types ?pref-regions)
+                    (location-fit ?turism-t-2 ?r2 ?pref-types ?pref-regions)
+                )
+                (>= 
+                    (room-price ?stars-h1)
+                    (room-price ?stars-h2)
+                )
+            )
+            (and (= 
+                    (location-fit ?turism-t-1 ?r1 ?pref-types ?pref-regions)
+                    (location-fit ?turism-t-2 ?r2 ?pref-types ?pref-regions)
+                )
+                (> 
+                    (room-price ?stars-h1)
+                    (room-price ?stars-h2)
+                )
+            )
+        )
+  )
+  =>
+  (modify ?trip (trip-plan ?rbegin ?l1 ?h1 (- ?d1 1) ?rmiddle ?l2 ?h2 (+ ?d2 1) ?rend))
+)
+
+(defrule TRIP::optimize-trip-rigth-to-left
+  ?h1 <- (hotel (stars ?stars-h1))
+  ?h2 <- (hotel (stars ?stars-h2))
+  ?l1 <- (location (region ?r1) (tourism-type $?turism-t-1))
+  ?l2 <- (location (region ?r2) (tourism-type $?turism-t-2))
+  ?trip <- (trip (trip-plan $?rbegin ?l1 ?h1 ?d1 $?rmiddle ?l2 ?h2 ?d2 $?rend))
+  (attribute (name n-day) (value ?day))
+  (attribute (name number-locations) (value ?nl))
+  (test (> ?d2 (div ?day (+ 1 ?nl))))
+  (attribute (name tourism-type) (value $?pref-types))
+  (attribute (name regions) (value $?pref-regions))
+  (test (or (and (< 
+                    (location-fit ?turism-t-2 ?r2 ?pref-types ?pref-regions)
+                    (location-fit ?turism-t-1 ?r1 ?pref-types ?pref-regions)
+                )
+                (>= 
+                    (room-price ?stars-h2)
+                    (room-price ?stars-h1)
+                )
+            )
+            (and (= 
+                    (location-fit ?turism-t-2 ?r2 ?pref-types ?pref-regions)
+                    (location-fit ?turism-t-1 ?r1 ?pref-types ?pref-regions)
+                )
+                (> 
+                    (room-price ?stars-h2)
+                    (room-price ?stars-h1)
+                )
+            )
+        )
+  )
+  =>
+  (modify ?trip (trip-plan ?rbegin ?l1 ?h1 (+ ?d1 1) ?rmiddle ?l2 ?h2 (- ?d2 1) ?rend))
+)
+
+;;************************
+;;* TRIP SELECTION *
+;;************************

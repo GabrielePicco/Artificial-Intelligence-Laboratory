@@ -181,6 +181,17 @@
             (the-question "Quanti kilometri massimi vuole percorrere durante il viaggio? ")
             (valid-answers)
             (valid-answers-domain "positive-integer"))
+  (question (attribute hotel-stars)
+            (the-question "Quante stelle deve avere l'hotel? ")
+            (valid-answers 1 2 3 4))
+  (question (attribute budget)
+            (the-question "Quanto si desidera spendere al massimo? ")
+            (valid-answers)
+            (valid-answers-domain "positive-integer"))
+  (question (attribute n-people)
+            (the-question "Quante persone desiderano partecipare? ")
+            (valid-answers)
+            (valid-answers-domain "positive-integer"))
 
 ;;* DEFAULTS      
   (attribute (name regions) (value) (certainty 50.0))
@@ -190,6 +201,7 @@
   (attribute (name n-people) (value 2) (certainty 50.0))
   (attribute (name max-km) (value 100) (certainty 50.0))
   (attribute (name hotel-stars) (value 1 2 3 4) (certainty 50.0))
+  (attribute (name budget) (value 3000.0) (certainty 50.0))
   (attribute (name group-allow-double-room) (value TRUE) (certainty 50.0))
 )
 
@@ -521,7 +533,7 @@
   (retract ?ha)
 )
 
-(defrule TRIP::optimize-trip-left-to-rigth
+(defrule TRIP::optimize-trip-left-to-right
   ?h1 <- (hotel (stars ?stars-h1))
   ?h2 <- (hotel (stars ?stars-h2))
   ?l1 <- (location (region ?r1) (tourism-type $?turism-t-1))
@@ -552,7 +564,7 @@
   (modify ?trip (trip-plan ?rbegin ?l1 ?h1 (- ?d1 1) ?rmiddle ?l2 ?h2 (+ ?d2 1) ?rend))
 )
 
-(defrule TRIP::optimize-trip-rigth-to-left
+(defrule TRIP::optimize-trip-right-to-left
   ?h1 <- (hotel (stars ?stars-h1))
   ?h2 <- (hotel (stars ?stars-h2))
   ?l1 <- (location (region ?r1) (tourism-type $?turism-t-1))
@@ -606,3 +618,11 @@
   (assert (attribute (name path-confidence) (value ?id) (certainty (* (/ ?fit (* (+ (* 5.0 (length$ ?vals)) 20.0) ?nl)) 100))))
 )
 
+(defrule TRIP-SELECTION::generate-path-price
+  (attribute (name n-people) (value ?np))
+  ?h <- (hotel (stars ?stars))
+  (trip (id ?id) (trip-plan $? ?l ?h ?d $?))
+  (attribute (name group-allow-double-room) (value ?allow-double))
+  =>
+  (assert (specification (name path-price) (subject ?id) (value (float (* (* (room-price ?stars) ?d) (rooms-number ?np ?allow-double))))))
+)

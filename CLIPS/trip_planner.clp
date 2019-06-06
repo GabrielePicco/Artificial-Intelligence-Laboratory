@@ -50,7 +50,7 @@
   (declare (salience 10000))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP))
+  (focus QUESTIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-SELECTION))
 
 (defrule MAIN::combine-certainties ""
   (declare (salience 100)
@@ -499,7 +499,7 @@
 (defrule TRIP::generate-trip
   ?tla <- (attribute (name trip-locations-assigmement) (value ?id ?d ?l $?lcs))
   (not (trip (id ?id)))
-  (attribute (name hotel-assignment) (value ?id ?l ?h))
+  ?ha <- (attribute (name hotel-assignment) (value ?id ?l ?h))
   (attribute (name n-day) (value ?day))
   (attribute (name number-locations) (value ?nl))
   =>
@@ -508,11 +508,12 @@
     then (modify ?tla (value ?id ?d ?lcs))
     else (retract ?tla)
   )
+  (retract ?ha)
 )
 
 (defrule TRIP::complete-trip
   ?tla <- (attribute (name trip-locations-assigmement) (value ?id ?d ?l $?lcs))
-  (attribute (name hotel-assignment) (value ?id ?l ?h))
+  ?ha <- (attribute (name hotel-assignment) (value ?id ?l ?h))
   ?trip <- (trip (id ?id) (trip-plan $?plan))
   (attribute (name n-day) (value ?day))
   (attribute (name number-locations) (value ?nl))
@@ -522,6 +523,7 @@
     then (modify ?tla (value ?id ?d ?lcs))
     else (retract ?tla)
   )
+  (retract ?ha)
 )
 
 (defrule TRIP::optimize-trip-left-to-rigth
@@ -597,3 +599,12 @@
 ;;************************
 ;;* TRIP SELECTION *
 ;;************************
+
+(defmodule TRIP-SELECTION (import MAIN ?ALL) (import LOCATIONS ?ALL) (import HOTEL ?ALL) (export ?ALL))
+
+
+(defrule TRIP-SELECTION::generate-pathfit-CF
+  ?l1 <- (location (region ?r2) (tourism-type $?turism-t-2))
+  =>
+  (assert (attribute (name trip-certainty) (value 12 13) (certainty 30)))
+)

@@ -55,7 +55,7 @@
   (declare (salience 10000))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-SELECTION))
+  (focus QUESTIONS LOCATIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-SELECTION))
 
 (defrule MAIN::combine-certainties ""
   (declare (salience 100)
@@ -66,6 +66,17 @@
   =>
   (retract ?rem1)
   (modify ?rem2 (certainty (/ (- (* 100 (+ ?per1 ?per2)) (* ?per1 ?per2)) 100))))
+
+(defrule MAIN::merge-specification-fit
+    (declare (salience 100)
+              (auto-focus TRUE))
+    ?s1 <- (specification (name ?n) (subject ?l) (value ?fit1&:(floatp ?fit1)))
+    ?s2 <- (specification (name ?n) (subject ?l) (value ?fit2&:(floatp ?fit2)))
+    (test (neq ?s1 ?s2))
+    =>
+    (modify ?s1 (value (+ ?fit1 ?fit2)))
+    (retract ?s2)
+)
   
 ;;******************
 ;;* QUESTION RULES *
@@ -219,7 +230,7 @@
       )
     )
   )
-  (if (subsetp (create$ ?loc-region) (create$ ?pref-region)) then (bind ?fit (+ ?fit 5)))
+  (if (subsetp (create$ ?loc-region) (create$ ?pref-region)) then (bind ?fit (+ ?fit 20)))
   ?fit
 )
 
@@ -275,27 +286,20 @@
   )
 )
 
-(defrule LOCATIONS::default-location-certainty
-    (declare (salience 100))
-    ?l <- (location (name ?name) (region ?region))
-    =>
-    (assert (attribute (name location-certainty) (value ?l) (certainty 0)))
-)
-
-(defrule LOCATIONS::update-turist-type-likelihood
+(defrule LOCATIONS::update-tourist-type-fit
+  (declare (salience 1000))
   (attribute (name tourism-type) (value $? ?val $?) (certainty ?c))
   ?l <- (location (name ?name) (region ?region) (tourism-type $? ?val&:(lexemep ?val) ?rank&:(floatp ?rank) $?))
-  (attribute (name location-certainty) (value ?l) (certainty ?cl))
   =>
-  (assert (attribute (name update-location-cf) (value ?l) (certainty (/ (+ ?c ?cl (* ?rank 20)) 4))))
+  (assert (specification (name location-fit) (subject ?l) (value ?rank)))
 )
 
-(defrule LOCATIONS::update-region-likelihood
+(defrule LOCATIONS::update-region-fit
+  (declare (salience 1000))
   (attribute (name regions) (value $? ?val $?) (certainty ?c))
   ?l <- (location (name ?name) (region ?val))
-  (attribute (name location-certainty) (value ?l) (certainty ?cl))
   =>
-  (assert (attribute (name update-location-cf) (value ?l) (certainty (/ (+ ?c ?cl) 2))))
+  (assert (specification (name location-fit) (subject ?l) (value 20.0))) ; like a city with 4 matching turism type, but not in the selected region
 )
 
 ;;*******************
@@ -522,25 +526,21 @@
   ?h2 <- (hotel (stars ?stars-h2))
   ?l1 <- (location (region ?r1) (tourism-type $?turism-t-1))
   ?l2 <- (location (region ?r2) (tourism-type $?turism-t-2))
+  (specification (name location-fit) (subject ?l1) (value ?fit-l1))
+  (specification (name location-fit) (subject ?l2) (value ?fit-l2))
   ?trip <- (trip (trip-plan $?rbegin ?l1 ?h1 ?d1 $?rmiddle ?l2 ?h2 ?d2 $?rend))
   (attribute (name n-day) (value ?day))
   (attribute (name number-locations) (value ?nl))
   (test (> ?d1 (div ?day (+ 1 ?nl))))
   (attribute (name tourism-type) (value $?pref-types))
   (attribute (name regions) (value $?pref-regions))
-  (test (or (and (< 
-                    (location-fit ?turism-t-1 ?r1 ?pref-types ?pref-regions)
-                    (location-fit ?turism-t-2 ?r2 ?pref-types ?pref-regions)
-                )
-                (>= 
+  (test (or (and (< ?fit-l1 ?fit-l2)
+                 (>= 
                     (room-price ?stars-h1)
                     (room-price ?stars-h2)
-                )
+                 )
             )
-            (and (= 
-                    (location-fit ?turism-t-1 ?r1 ?pref-types ?pref-regions)
-                    (location-fit ?turism-t-2 ?r2 ?pref-types ?pref-regions)
-                )
+            (and (= ?fit-l1 ?fit-l2)
                 (> 
                     (room-price ?stars-h1)
                     (room-price ?stars-h2)
@@ -557,29 +557,25 @@
   ?h2 <- (hotel (stars ?stars-h2))
   ?l1 <- (location (region ?r1) (tourism-type $?turism-t-1))
   ?l2 <- (location (region ?r2) (tourism-type $?turism-t-2))
+  (specification (name location-fit) (subject ?l1) (value ?fit-l1))
+  (specification (name location-fit) (subject ?l2) (value ?fit-l2))
   ?trip <- (trip (trip-plan $?rbegin ?l1 ?h1 ?d1 $?rmiddle ?l2 ?h2 ?d2 $?rend))
   (attribute (name n-day) (value ?day))
   (attribute (name number-locations) (value ?nl))
   (test (> ?d2 (div ?day (+ 1 ?nl))))
   (attribute (name tourism-type) (value $?pref-types))
   (attribute (name regions) (value $?pref-regions))
-  (test (or (and (< 
-                    (location-fit ?turism-t-2 ?r2 ?pref-types ?pref-regions)
-                    (location-fit ?turism-t-1 ?r1 ?pref-types ?pref-regions)
-                )
+  (test (or (and (< ?fit-l2 ?fit-l1)
                 (>= 
                     (room-price ?stars-h2)
                     (room-price ?stars-h1)
                 )
             )
-            (and (= 
-                    (location-fit ?turism-t-2 ?r2 ?pref-types ?pref-regions)
-                    (location-fit ?turism-t-1 ?r1 ?pref-types ?pref-regions)
-                )
-                (> 
+            (and (= ?fit-l2 ?fit-l1)
+                 (> 
                     (room-price ?stars-h2)
                     (room-price ?stars-h1)
-                )
+                 )
             )
         )
   )
@@ -591,11 +587,22 @@
 ;;* TRIP SELECTION *
 ;;************************
 
-(defmodule TRIP-SELECTION (import MAIN ?ALL) (import LOCATIONS ?ALL) (import HOTEL ?ALL) (export ?ALL))
+(defmodule TRIP-SELECTION (import MAIN ?ALL) (import LOCATIONS ?ALL) (import HOTEL ?ALL) (import TRIP ?ALL) (export ?ALL))
 
 
-(defrule TRIP-SELECTION::generate-pathfit-CF
-  ?l1 <- (location (region ?r2) (tourism-type $?turism-t-2))
+(defrule TRIP-SELECTION::generate-pathfit
+  (declare (salience 1000))
+  (trip (id ?id) (trip-plan $? ?l ?h ?d $?))
+  (specification (name location-fit) (subject ?l) (value ?fit))
   =>
-  (assert (attribute (name trip-certainty) (value 12 13) (certainty 30)))
+  (assert (specification (name path-fit) (subject ?id) (value ?fit)))
 )
+
+(defrule TRIP-SELECTION::generate-path-certainty
+  (specification (name path-fit) (subject ?id) (value ?fit))
+  (attribute (name number-locations) (value ?nl) (certainty ?cnl))
+  (attribute (name tourism-type) (value $?vals) (certainty ?ctt))
+  =>
+  (assert (attribute (name path-confidence) (value ?id) (certainty (* (/ ?fit (* (+ (* 5.0 (length$ ?vals)) 20.0) ?nl)) 100))))
+)
+

@@ -46,6 +46,11 @@
    (multislot value)
    (slot certainty (default 100.0)))
 
+ (deftemplate MAIN::specification
+   (slot name)
+   (slot subject)
+   (multislot value))
+
 (defrule MAIN::start
   (declare (salience 10000))
   =>
@@ -270,21 +275,6 @@
   )
 )
 
-(defrule LOCATIONS::init-day-range-domain
-    (attribute (name n-day) (value ?day))
-    (attribute (name number-locations) (value ?nl))
-    =>
-    (assert (attribute (name n-day-range) (value (- ?day (- ?nl 1)))))
-)
-
-;(defrule LOCATIONS::generate-day-range-domain
-;    ?r <- (attribute (name n-day-range) (value $?prec ?day))
-;    ?r <- (attribute (name number-locations) (value ?nl))
-;    (test (> ?day 1))
-;    =>
-;    (modify ?r (value ?prec ?day (- ?day 1)))
-;)
-
 (defrule LOCATIONS::default-location-certainty
     (declare (salience 100))
     ?l <- (location (name ?name) (region ?region))
@@ -339,12 +329,12 @@
   )
   (attribute (name number-locations) (value ?nl))
   =>
-  (assert (attribute (name trip-locations) (value ?nl 0 ?l)))
+  (assert (specification (name trip-locations) (subject (gensym*)) (value ?nl 0 ?l)))
 )
 
 (defrule GENERATE-PATH::expand-path
   ?l1 <- (location (lat ?lat1) (long ?long1))
-  (attribute (name trip-locations) (value ?nl ?distance $?prec ?l1))
+  (specification (name trip-locations) (value ?nl ?distance $?prec ?l1))
   ?l2 <- (location (lat ?lat2) (long ?long2))
   (test (> ?nl 1))
   (test (neq ?l1 ?l2))
@@ -352,9 +342,10 @@
   (attribute (name max-km) (value ?max-km))
   (test (< (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?max-km))
   =>
-  (assert (attribute (name trip-locations) 
-                     (value (- ?nl 1) 
-                     (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?prec ?l1 ?l2)))
+  (assert (specification (name trip-locations) 
+                         (subject (gensym*))
+                         (value (- ?nl 1) 
+                         (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?prec ?l1 ?l2)))
 )
 
 ;;*******************
@@ -367,15 +358,15 @@
 (defrule OPTMIZE-PATH::remove-partial-path
   (declare (salience 100))
   (attribute (name number-locations) (value ?nl))
-  ?a <- (attribute (name trip-locations) (value ?nlp&:(> ?nlp 1) $?))
+  ?a <- (specification (name trip-locations) (value ?nlp&:(> ?nlp 1) $?))
   =>
   (retract ?a)
 )
 
 (defrule OPTMIZE-PATH::delete-suboptim-path
   (declare (salience 10))
-  ?a <- (attribute (name trip-locations) (value ?nl ?d1 $?lcs1))
-  ?b <- (attribute (name trip-locations) (value ?nl ?d2 $?lcs2))
+  ?a <- (specification (name trip-locations) (value ?nl ?d1 $?lcs1))
+  ?b <- (specification (name trip-locations) (value ?nl ?d2 $?lcs2))
   (test (>= ?d2 ?d1))
   (test (subsetp (create$ ?lcs1) (create$ ?lcs2)))
   (test (neq ?a ?b))
@@ -384,10 +375,10 @@
 )
 
 (defrule OPTMIZE-PATH::generate-path-id
-  ?a <- (attribute (name trip-locations) (value ?nl&:(integerp ?nl) ?d1 $?lcs1))
+  ?a <- (specification (name trip-locations) (subject ?id) (value ?nl&:(integerp ?nl) ?d1 $?lcs1))
   =>
   (retract ?a)
-  (assert (attribute (name trip-locations-assigmement) (value (gensym) ?d1 ?lcs1)))
+  (assert (specification (name trip-locations-assigmement) (subject ?id) (value ?d1 ?lcs1)))
 )
 
 ;;*******************
@@ -458,7 +449,7 @@
 (defrule HOTEL::generate-hotel-assignment
   (declare (salience 100))
   ?l <- (location (name ?city) (region ?region))
-  (attribute (name trip-locations-assigmement) (value ?id ?d $? ?l $?))
+  (specification (name trip-locations-assigmement) (subject ?id) (value ?d $? ?l $?))
   (attribute (name n-people) (value ?np))
   (attribute (name group-allow-double-room) (value ?allow-double))
   (attribute (name hotel-stars) (value $?stars))
@@ -466,21 +457,21 @@
   (not (hotel (city ?city) (region ?region) (stars ?s2&:(and (< ?s2 ?s) (subsetp (create$ ?s2) (create$ ?stars)))) (rooms ?a2&:(> ?a2 (rooms-number ?np ?allow-double)))))   ; hotel less stars, enough rooms
   (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (rooms ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer rooms
   =>
-  (assert (attribute (name hotel-assignment) (value ?id ?l ?h1)))
+  (assert (specification (name hotel-assignment) (subject ?id) (value ?l ?h1)))
 )
 
 (defrule HOTEL::generate-missing-hotel-assignment
   ?l <- (location (name ?city) (region ?region))
-  (attribute (name trip-locations-assigmement) (value ?id ?d $? ?l $?))
+  (specification (name trip-locations-assigmement) (subject ?id) (value ?d $? ?l $?))
   (attribute (name n-people) (value ?np))
   (attribute (name hotel-stars) (value $?stars))
   (attribute (name group-allow-double-room) (value ?allow-double))
   ?h1 <- (hotel (city ?city) (region ?region) (stars ?s) (rooms ?a&:(> ?a (rooms-number ?np ?allow-double))))
-  (not (attribute (name hotel-assignment) (value ?id ?l ?h1))) ; not already assigned
+  (not (specification (name hotel-assignment) (subject ?id) (value ?l ?h1))) ; not already assigned
   (not (hotel (city ?city) (region ?region) (stars ?s2&:(< ?s2 ?s)) (rooms ?a2&:(> ?a2 (rooms-number ?np ?allow-double)))))   ; hotel less stars, enough rooms
   (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (rooms ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer rooms
   =>
-  (assert (attribute (name hotel-assignment) (value ?id ?l ?h1)))
+  (assert (specification (name hotel-assignment) (subject ?id) (value ?l ?h1)))
 )
 
 
@@ -497,30 +488,30 @@
 )
 
 (defrule TRIP::generate-trip
-  ?tla <- (attribute (name trip-locations-assigmement) (value ?id ?d ?l $?lcs))
+  ?tla <- (specification (name trip-locations-assigmement) (subject ?id) (value ?d ?l $?lcs))
   (not (trip (id ?id)))
-  ?ha <- (attribute (name hotel-assignment) (value ?id ?l ?h))
+  ?ha <- (specification (name hotel-assignment) (subject ?id) (value ?l ?h))
   (attribute (name n-day) (value ?day))
   (attribute (name number-locations) (value ?nl))
   =>
   (assert (trip (id ?id) (moving-km ?d) (trip-plan ?l ?h (+ (div ?day ?nl) (mod ?day ?nl)))))
   (if (> (length$ ?lcs) 0)
-    then (modify ?tla (value ?id ?d ?lcs))
+    then (modify ?tla (subject ?id) (value ?d ?lcs))
     else (retract ?tla)
   )
   (retract ?ha)
 )
 
 (defrule TRIP::complete-trip
-  ?tla <- (attribute (name trip-locations-assigmement) (value ?id ?d ?l $?lcs))
-  ?ha <- (attribute (name hotel-assignment) (value ?id ?l ?h))
+  ?tla <- (specification (name trip-locations-assigmement) (subject ?id) (value ?d ?l $?lcs))
+  ?ha <- (specification (name hotel-assignment) (subject ?id) (value ?l ?h))
   ?trip <- (trip (id ?id) (trip-plan $?plan))
   (attribute (name n-day) (value ?day))
   (attribute (name number-locations) (value ?nl))
   =>
   (modify ?trip (trip-plan ?plan ?l ?h (div ?day ?nl)))
   (if (> (length$ ?lcs) 0)
-    then (modify ?tla (value ?id ?d ?lcs))
+    then (modify ?tla (subject ?id) (value ?d ?lcs))
     else (retract ?tla)
   )
   (retract ?ha)

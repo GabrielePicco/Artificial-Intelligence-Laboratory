@@ -1,9 +1,8 @@
 ;;;======================================================
-;;;   Trip Expert Problem
+;;;   Planning a Trip: Expert Problem
 ;;;
 ;;;   
 ;;;
-;;;     To execute, merely load, reset and run.
 ;;;======================================================
 
 (defmodule MAIN (export ?ALL))
@@ -55,7 +54,7 @@
   (declare (salience 10000))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS LOCATIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-SELECTION))
+  (focus QUESTIONS LOCATIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-COST TRIP-SELECTION))
 
 (defrule MAIN::combine-positive-certainties
   (declare (salience 100)
@@ -182,6 +181,15 @@
     then (modify ?f (precursors (rest$ ?rest)))
     else (modify ?f (precursors ?rest))))
 
+(defrule QUESTIONS::precursor-is-cf-satisfied
+   ?f <- (question (already-asked FALSE)
+                   (precursors ?name is-cf ?value $?rest))
+         (attribute (name ?name) (certainty ?cf&:(= ?cf ?value)))
+   =>
+   (if (eq (nth$ 1 ?rest) and) 
+    then (modify ?f (precursors (rest$ ?rest)))
+    else (modify ?f (precursors ?rest))))
+
 ;;*******************
 ;;* PREFERENCES QUESTIONS *
 ;;*******************
@@ -214,16 +222,20 @@
             (the-question "Quante persone desiderano partecipare? ")
             (valid-answers)
             (valid-answers-domain "positive-integer"))
+  (question (attribute group-allow-double-room)
+          (the-question "Le persone sono disponibili a dormire in camere doppie? ")
+          (precursors n-people is-cf 100)
+          (valid-answers TRUE FALSE))
 
 ;;* DEFAULTS      
-  (attribute (name regions) (value))
-  (attribute (name tourism-type) (value))
+  (attribute (name regions) (value) (certainty 50.0))
+  (attribute (name tourism-type) (value) (certainty 50.0))
   (attribute (name number-locations) (value 3) (certainty 50.0))
   (attribute (name n-day) (value 5) (certainty 50.0))
   (attribute (name n-people) (value 2) (certainty 50.0))
   (attribute (name group-allow-double-room) (value TRUE) (certainty 50.0))
   (attribute (name max-km) (value 100) (certainty 50.0))
-  (attribute (name hotel-stars) (value 1 2 3 4))
+  (attribute (name hotel-stars) (value 1 2 3 4) (certainty 50.0))
 )
 
 ;;*******************
@@ -263,7 +275,7 @@
       )
     )
   )
-  (if (subsetp (create$ ?loc-region) (create$ ?pref-region)) then (bind ?fit (+ ?fit 20)))
+  (if (subsetp (create$ ?loc-region) (create$ ?pref-region)) then (bind ?fit (+ ?fit 15)))
   ?fit
 )
 
@@ -327,7 +339,7 @@
   (attribute (name regions) (value $? ?val $?) (certainty ?c))
   ?l <- (location (name ?name) (region ?val))
   =>
-  (assert (specification (name location-fit) (subject ?l) (value 20.0))) ; like a city with 4 matching turism type, but not in the selected region
+  (assert (specification (name location-fit) (subject ?l) (value 15.0))) ; like a city with 3 matching turism type, but not in the selected region
 )
 
 
@@ -392,7 +404,7 @@
   (retract ?b)
 )
 
-(defrule OPTMIZE-PATH::generate-path-id
+(defrule OPTMIZE-PATH::delete-path-counter
   ?a <- (specification (name trip-locations) (subject ?id) (value ?nl&:(integerp ?nl) ?d1 $?lcs1))
   =>
   (retract ?a)
@@ -485,7 +497,7 @@
   (attribute (name hotel-stars) (value $?stars))
   (attribute (name group-allow-double-room) (value ?allow-double))
   ?h1 <- (hotel (city ?city) (region ?region) (stars ?s) (rooms ?a&:(> ?a (rooms-number ?np ?allow-double))))
-  (not (specification (name hotel-assignment) (subject ?id) (value ?l ?h1))) ; not already assigned
+  (not (specification (name hotel-assignment) (subject ?id) (value ?l $?))) ; not already assigned
   (not (hotel (city ?city) (region ?region) (stars ?s2&:(< ?s2 ?s)) (rooms ?a2&:(> ?a2 (rooms-number ?np ?allow-double)))))   ; hotel less stars, enough rooms
   (not (hotel (city ?city) (region ?region) (stars ?s2&:(= ?s2 ?s)) (rooms ?a2&:(> ?a2 ?a))))     ; hotel same stars, but higer rooms
   =>
@@ -503,6 +515,7 @@
    (slot id (default ?NONE))
    (multislot trip-plan (default ?NONE))
    (slot moving-km (default ?NONE) (type FLOAT))
+   (slot cost (default 0.0) (type FLOAT))
 )
 
 (defrule TRIP::generate-trip
@@ -555,10 +568,10 @@
                  )
             )
             (and (= ?fit-l1 ?fit-l2)
-                (> 
+                 (> 
                     (room-price ?stars-h1)
                     (room-price ?stars-h2)
-                )
+                 )
             )
         )
   )
@@ -598,6 +611,30 @@
 )
 
 ;;************************
+;;* TRIP CALCULATE PRICE *
+;;************************
+
+(defmodule TRIP-COST (import MAIN ?ALL) (import HOTEL ?ALL) (import TRIP ?ALL) (export ?ALL))
+
+(defrule TRIP-COST::calculate-path-price
+  (declare (salience 100))
+  (attribute (name n-people) (value ?np))
+  ?h <- (hotel (stars ?stars))
+  ?t <- (trip (id ?id) (trip-plan $? ?l ?h ?d $?) (cost ?cost&:(= ?cost 0.0)))
+  (attribute (name group-allow-double-room) (value ?allow-double))
+  =>
+  (assert (specification (name hotel-price) (subject ?t) (value (float (* (* (room-price ?stars) ?d) (rooms-number ?np ?allow-double))))))
+)
+
+(defrule TRIP-COST::modify-trip-path-price
+  ?t <- (trip (cost ?cost))
+  ?s <- (specification (name hotel-price) (subject ?t) (value ?trip-cost))
+  =>
+  (modify ?t (cost ?trip-cost))
+  (retract ?s)
+)
+
+;;************************
 ;;* TRIP SELECTION *
 ;;************************
 
@@ -622,76 +659,74 @@
    (* ?cf 100)
 )
 
+(deffunction TRIP-SELECTION::default-to-denominator (?cfs)
+   (bind ?cf (max (expand$ (create$ ?cfs))))
+   (if (< ?cf 100) 
+   then (bind ?d 2)
+   else (bind ?d 1)
+   )
+   ?d
+)
+
 (defrule TRIP-SELECTION::generate-pathfit
-  (declare (salience 1000))
-  (trip (id ?id) (trip-plan $? ?l ?h ?d $?))
+  (declare (salience 100))
+  ?t <- (trip (trip-plan $? ?l ?h ?d $?))
   (specification (name location-fit) (subject ?l) (value ?fit))
   =>
-  (assert (specification (name path-fit) (subject ?id) (value ?fit)))
+  (assert (specification (name path-fit) (subject ?t) (value ?fit)))
 )
 
 (defrule TRIP-SELECTION::generate-path-fit-certainty
-  ?s <- (specification (name path-fit) (subject ?id) (value ?fit))
+  ?s <- (specification (name path-fit) (subject ?t) (value ?fit))
   (attribute (name number-locations) (value ?nl) (certainty ?cnl))
   (attribute (name tourism-type) (value $?vals) (certainty ?ctt))
   =>
-  (assert (attribute (name path-confidence) (value ?id) (certainty (* (/ ?fit (* (+ (* 5.0 (length$ ?vals)) 20.0) ?nl)) 100))))
+  (assert (attribute (name path-confidence-fit) (value ?t) (certainty (* (/ ?fit (* (+ (* 5.0 (length$ ?vals)) 15.0) (* ?nl 1.5))) 100))))
   (retract ?s)
-)
-
-(defrule TRIP-SELECTION::generate-path-price
-  (declare (salience 1000))
-  (attribute (name n-people) (value ?np))
-  ?h <- (hotel (stars ?stars))
-  (trip (id ?id) (trip-plan $? ?l ?h ?d $?))
-  (attribute (name group-allow-double-room) (value ?allow-double))
-  =>
-  (assert (specification (name path-price) (subject ?id) (value (float (* (* (room-price ?stars) ?d) (rooms-number ?np ?allow-double))))))
 )
 
 (defrule TRIP-SELECTION::generate-path-price-bounded-certainty
-  ?s <- (specification (name path-price) (subject ?id) (value ?price))
+  ?t <- (trip (cost ?price))
   (attribute (name budget) (value ?max-price))
   =>
-  (assert (attribute (name path-confidence) (value ?id) (certainty (bounded-price-to-cf ?price ?max-price))))
-  (retract ?s)
+  (assert (attribute (name path-confidence-price) (value ?t) (certainty (bounded-price-to-cf ?price ?max-price))))
 )
 
 (defrule TRIP-SELECTION::generate-path-price-certainty
-  ?s <- (specification (name path-price) (subject ?id) (value ?price))
+  ?t <- (trip (cost ?price))
   (attribute (name n-day) (value ?day))
   (attribute (name n-people) (value ?np))
   (attribute (name group-allow-double-room) (value ?allow-double))
   =>
-  (assert (attribute (name path-confidence) 
-  (value ?id) 
+  (assert (attribute (name path-confidence-price) 
+  (value ?t) 
   (certainty (price-to-cf ?price 
                           (* (* (room-price 3) ?day) (rooms-number ?np ?allow-double)))))) ; price estimation
-  (retract ?s)
 )
 
 (defrule TRIP-SELECTION::generate-trip-distance-certainty
-  (trip (id ?id) (moving-km ?km))
-  (attribute (name max-km) (value ?max-km))
+  ?t <- (trip (moving-km ?km))
+  (attribute (name max-km) (value ?max-km) (certainty ?c-km))
   =>
-  (assert (attribute (name path-confidence) (value ?id) (certainty (distance-to-cf ?km ?max-km))))
+  (assert (attribute (name path-confidence-distance) (value ?t) (certainty (/ (distance-to-cf ?km ?max-km) (default-to-denominator ?c-km)))))
 )
 
 (defrule TRIP-SELECTION::generate-trip-hotel-incorrect-count
-  (declare (salience 1000))
+  (declare (salience 100))
   (attribute (name hotel-stars) (value $?stars))
   (test (< (length$ ?stars) 4))
   ?h <- (hotel (stars ?s-h))
-  (trip (id ?id) (trip-plan $? ?l ?h ?d $?))
+  ?t <- (trip (trip-plan $? ?l ?h ?d $?))
   (test (not (subsetp (create$ ?s-h) (create$ ?stars))))
   =>
-  (assert (specification (name path-out-of-range-hotel) (subject ?id) (value 1.0)))
+  (assert (specification (name path-out-of-range-hotel) (subject ?t) (value 1.0)))
 )
 
 (defrule TRIP-SELECTION::generate-trip-hotel-certainty
-  ?s <- (specification (name path-out-of-range-hotel) (subject ?id) (value ?ih))
+  ?s <- (specification (name path-out-of-range-hotel) (subject ?t) (value ?ih))
   (attribute (name number-locations) (value ?nl))
   =>
-  (assert (attribute (name path-confidence) (value ?id) (certainty (* (/ ?ih ?nl) -80))))
+  (assert (attribute (name path-confidence-hotel) (value ?t) (certainty (* (/ ?ih ?nl) -60))))
   (retract ?s)
 )
+

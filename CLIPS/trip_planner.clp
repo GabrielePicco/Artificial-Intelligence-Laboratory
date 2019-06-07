@@ -327,7 +327,7 @@
 )
 
 (defrule LOCATIONS::update-tourist-type-fit
-  (declare (salience 1000))
+  (declare (salience 100))
   (attribute (name tourism-type) (value $? ?val $?) (certainty ?c))
   ?l <- (location (name ?name) (region ?region) (tourism-type $? ?val&:(lexemep ?val) ?rank&:(floatp ?rank) $?))
   =>
@@ -335,7 +335,7 @@
 )
 
 (defrule LOCATIONS::update-region-fit
-  (declare (salience 1000))
+  (declare (salience 100))
   (attribute (name regions) (value $? ?val $?) (certainty ?c))
   ?l <- (location (name ?name) (region ?val))
   =>

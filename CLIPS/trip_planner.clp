@@ -28,7 +28,7 @@
                 )
           ) 
     do
-      (printout t ?question)
+      (printout t crlf "> " ?question)
       (bind ?answer (explode$ (readline)))
       (if (lexemep ?answer) then (bind ?answer (lowcase ?answer))))
    ?answer)
@@ -351,6 +351,28 @@
   (assert (specification (name location-fit) (subject ?l) (value 15.0))) ; like a city with 3 matching turism type, but not in the selected region
 )
 
+(defrule LOCATIONS::delete-prec-computation-on-change
+  (attribute (name number-locations))
+  (attribute (name regions))
+  (attribute (name max-km))
+  =>
+  (assert (attribute (name delete-prec-path-computation)))
+)
+
+(defrule LOCATIONS::delete-prec-computation
+  (declare (salience 100))
+  ?tl <- (specification (name trip-locations))
+  (attribute (name delete-prec-path-computation))
+  =>
+  (retract ?tl)
+)
+
+(defrule LOCATIONS::delete-prec-computation-intention
+  ?i <- (attribute (name delete-prec-path-computation))
+  =>
+  (retract ?i)
+)
+
 
 ;;*******************
 ;;* GENERATE PATH *
@@ -413,10 +435,10 @@
   (retract ?b)
 )
 
-(defrule OPTMIZE-PATH::delete-path-counter
-  ?a <- (specification (name trip-locations) (subject ?id) (value ?nl&:(integerp ?nl) ?d1 $?lcs1))
+(defrule OPTMIZE-PATH::generate-path-assignment
+  (specification (name trip-locations) (subject ?id) (value ?nl&:(integerp ?nl) ?d1 $?lcs1))
+  (attribute (name restart))
   =>
-  (retract ?a)
   (assert (specification (name trip-locations-assigmement) (subject ?id) (value ?d1 ?lcs1)))
 )
 
@@ -512,6 +534,7 @@
   =>
   (assert (specification (name hotel-assignment) (subject ?id) (value ?l ?h1)))
 )
+
 
 
 ;;*******************
@@ -815,6 +838,7 @@
   (attribute (name number-locations) (value ?nl))
   =>
   (printout t crlf)
+  (printout t "***********************************" crlf)
   (printout t "Trip suggestion (with certainty " (round ?cf) ")" crlf)
   (printout t " - Journey length: " ?nd " days" crlf)
   (printout t " - Number of locations: " ?nl " city" crlf)
@@ -824,16 +848,17 @@
   (if (eq ?allow-double TRUE) then (printout t " (with double rooms)" crlf) else (printout t " (with single rooms)" crlf))
   (printout t " - Journey: " crlf)
   (print-formatted-trip ?to-print)
+  (printout t "***********************************" crlf)
   (retract ?print)
   (retract ?t)
   (retract ?tcf)
 )
 
 ;;************************
-;;* PRINT RESULTS *
+;;* FINAL QUESTION MODULE *
 ;;************************
 
-(defmodule FINAL-QUESTIONS (import MAIN ?ALL) (import QUESTIONS ?ALL) (import PRINT-RESULTS ?ALL) (export ?ALL))
+(defmodule FINAL-QUESTIONS (import MAIN ?ALL) (import QUESTIONS ?ALL) (import TRIP ?ALL) (import PRINT-RESULTS ?ALL) (export ?ALL))
 
 (defrule FINAL-QUESTIONS::insert-final-question
   (not (attribute (name final-question)))
@@ -856,10 +881,24 @@
 
 (defrule FINAL-QUESTIONS::affine-search
   ?fq <- (attribute (name final-question) (value affine))
+  ?print <- (attribute (name printed))
+  ?max-p <- (attribute (name max-print))
   ?rs <- (attribute (name restart))
+  (not (trip (id ?id)))
   =>
+  (modify ?print (value 0))
+  (modify ?max-p (value 3))
   (retract ?fq)
   (retract ?rs) (assert (attribute (name restart)))
+)
+
+(defrule FINAL-QUESTIONS::delete-previous-computed-trip
+  (attribute (name final-question) (value affine))
+  ?t <- (trip (id ?id))
+  ?tcf <- (attribute (name path-confidence) (value ?t))
+  =>
+  (retract ?t)
+  (retract ?tcf)
 )
 
 (defrule FINAL-QUESTIONS::reset-instance

@@ -227,6 +227,10 @@
             (the-question "Quanto si desidera spendere al massimo? ")
             (valid-answers)
             (valid-answers-domain "positive-integer"))
+  (question (attribute n-day)
+            (the-question "Quanti giorni di vacanza sono previsti ? ")
+            (valid-answers)
+            (valid-answers-domain "positive-integer"))
   (question (attribute n-people)
             (the-question "Quante persone desiderano partecipare? ")
             (valid-answers)
@@ -254,6 +258,10 @@
 
 (defmodule LOCATIONS (import MAIN ?ALL) (export ?ALL))
 
+;;**************************
+;;* LOCATIONS DEFFUNCTIONS *
+;;**************************
+
 (deffunction LOCATIONS::calculate-distance (?lat1 ?lon1 ?lat2 ?lon2)
    (bind ?r 6371)
    (bind ?phi1 (deg-rad ?lat1))
@@ -270,24 +278,9 @@
    ?d
 )
 
-(deffunction LOCATIONS::location-fit (?loc-turism-type ?loc-region ?pref-turism-type ?pref-region)
-  (bind ?fit 0)
-  (progn$ 
-    (?field (create$ ?loc-turism-type))
-    (if (lexemep ?field) 
-      then (bind ?t-type ?field)
-    )
-    (if (floatp ?field) 
-      then 
-      (if (subsetp (create$ ?t-type) (create$ ?pref-turism-type)) 
-        then (bind ?fit (+ ?fit ?field))
-      )
-    )
-  )
-  (if (subsetp (create$ ?loc-region) (create$ ?pref-region)) then (bind ?fit (+ ?fit 15)))
-  ?fit
-)
-
+;;**************************
+;;* LOCATIONS TEMPLATES AND FACTS *
+;;**************************
 
 (deftemplate LOCATIONS::location
    (slot name (default ?NONE))
@@ -335,6 +328,10 @@
   )
 )
 
+;;***********************************************************************
+;;* LOCATIONS RULE FOR COMPUTING THE CITY FIT WITH THE USER PREFERENCES *
+;;***********************************************************************
+
 (defrule LOCATIONS::update-tourist-type-fit
   (declare (salience 100))
   (attribute (name tourism-type) (value $? ?val $?) (certainty ?c))
@@ -373,10 +370,9 @@
   (retract ?i)
 )
 
-
-;;*******************
-;;* GENERATE PATH *
-;;*******************
+;;***********************
+;;* GENERATE PATH MODULE*
+;;***********************
 
 
 (defmodule GENERATE-PATH (import LOCATIONS ?ALL) (import MAIN ?ALL))
@@ -409,9 +405,9 @@
                          (+ ?distance (calculate-distance ?lat1 ?long1 ?lat2 ?long2)) ?prec ?l1 ?l2)))
 )
 
-;;*******************
-;;* OPTIMIZE PATH *
-;;*******************
+;;***********************
+;;* OPTIMIZE PATH MODULE*
+;;***********************
 
 
 (defmodule OPTMIZE-PATH (import LOCATIONS ?ALL) (import MAIN ?ALL))
@@ -443,7 +439,7 @@
 )
 
 ;;*******************
-;;* HOTEL
+;;* HOTEL MODULE
 ;;*******************
 
 
@@ -507,6 +503,10 @@
   )
 )
 
+;;*********************************************************
+;;* HOTEL RULE FOR ASSIGNING THE HOTEL TO A SPECIFIC TRIP *
+;;*********************************************************
+
 (defrule HOTEL::generate-hotel-assignment
   (declare (salience 100))
   ?l <- (location (name ?city) (region ?region))
@@ -537,9 +537,9 @@
 
 
 
-;;*******************
-;;* GENERATE TRIP *
-;;*******************
+;;**********************
+;;* GENERATE TRIP MOULE*
+;;**********************
 
 (defmodule TRIP (import MAIN ?ALL) (import LOCATIONS ?ALL) (import HOTEL ?ALL) (export ?ALL))
 
@@ -642,9 +642,9 @@
   (modify ?trip (trip-plan ?rbegin ?l1 ?h1 (+ ?d1 1) ?rmiddle ?l2 ?h2 (- ?d2 1) ?rend))
 )
 
-;;************************
-;;* TRIP CALCULATE PRICE *
-;;************************
+;;****************************************************
+;;* TRIP CALCULATE PRICE MODULE (after optimization) *
+;;****************************************************
 
 (defmodule TRIP-COST (import MAIN ?ALL) (import HOTEL ?ALL) (import TRIP ?ALL) (export ?ALL))
 
@@ -666,9 +666,11 @@
   (retract ?s)
 )
 
-;;************************
-;;* TRIP SELECTION *
-;;************************
+;;*****************************************************************************************************************
+;;* TRIP SELECTION MODULE                                                                                         *
+;;                                                                                                                *
+;;* uses heuristics and metrics to derive the quality of a path (like distance, price, hotels), asserting its CF  *
+;;*****************************************************************************************************************
 
 (defmodule TRIP-SELECTION (import MAIN ?ALL) (import LOCATIONS ?ALL) (import HOTEL ?ALL) (import TRIP ?ALL) (export ?ALL))
 
@@ -763,7 +765,7 @@
 )
 
 ;;************************
-;;* PRINT RESULTS *
+;;* PRINT RESULTS MODULE *
 ;;************************
 
 (defmodule PRINT-RESULTS (import MAIN ?ALL) (import LOCATIONS ?ALL) (import HOTEL ?ALL) (import TRIP ?ALL) (export ?ALL))
@@ -854,9 +856,11 @@
   (retract ?tcf)
 )
 
-;;************************
-;;* FINAL QUESTION MODULE *
-;;************************
+;;****************************************************************************************
+;;* FINAL QUESTION MODULE                                                                *
+;;                                                                                       *
+;; enable the user to affine the research, see more solutions, reset or exit the program *
+;;****************************************************************************************
 
 (defmodule FINAL-QUESTIONS (import MAIN ?ALL) (import QUESTIONS ?ALL) (import TRIP ?ALL) (import PRINT-RESULTS ?ALL) (export ?ALL))
 

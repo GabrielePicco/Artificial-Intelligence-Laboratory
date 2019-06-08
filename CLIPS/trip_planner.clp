@@ -12,7 +12,7 @@
 ;;****************
 
 (deffunction MAIN::ask-question (?question ?allowed-values ?domain ?must-answer)
-   (printout t ?question)
+   (printout t crlf "> " ?question)
    (bind ?answer (explode$ (readline)))
    (if (lexemep ?answer) then (bind ?answer (lowcase ?answer)))
    (while (not (or (or (and (subsetp ?answer ?allowed-values) (eq ?must-answer FALSE)) 
@@ -57,7 +57,7 @@
   (attribute (name restart))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS LOCATIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-COST TRIP-SELECTION PRINT-RESULTS FINAL-QUESTIONS)
+  (focus QUESTIONS ENRICH LOCATIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-COST TRIP-SELECTION PRINT-RESULTS FINAL-QUESTIONS)
 )
 
 (defrule MAIN::combine-positive-certainties
@@ -165,7 +165,7 @@
 
 (defrule QUESTIONS::delete-less-specific-default
   (declare (salience 100))
-  ?rem1 <- (attribute (name ?nm) (certainty ?val1))
+  ?rem1 <- (attribute (name ?nm&:(neq ?nm tourism-type)) (certainty ?val1))
   ?rem2 <- (attribute (name ?nm) (certainty ?val2&:(>= ?val2 ?val1)))
   (test (neq ?rem1 ?rem2))
   =>
@@ -199,9 +199,9 @@
     then (modify ?f (precursors (rest$ ?rest)))
     else (modify ?f (precursors ?rest))))
 
-;;*******************
+;;*************************
 ;;* PREFERENCES QUESTIONS *
-;;*******************
+;;*************************
 
 (defmodule TRIP-QUESTIONS (import QUESTIONS ?ALL))
 
@@ -228,7 +228,7 @@
             (valid-answers)
             (valid-answers-domain "positive-integer"))
   (question (attribute n-day)
-            (the-question "Quanti giorni di vacanza sono previsti ? ")
+            (the-question "Quanti giorni di vacanza sono previsti? ")
             (valid-answers)
             (valid-answers-domain "positive-integer"))
   (question (attribute n-people)
@@ -251,10 +251,65 @@
   (attribute (name hotel-stars) (value 1 2 3 4) (certainty 50.0))
 )
 
-;;*******************
-;;* LOCATIONS MATCHING USER PREFERENCES *
-;;*******************
+;;*****************************************************
+;;* ENRICH MODULE                                     *
+;;                                                    *
+;;  enrich the user preferences with system expertise *
+;;*****************************************************
 
+(defmodule ENRICH (import MAIN ?ALL) (export ?ALL))
+
+(defrule ENRICH::infer-montano-naturalistico-pref
+  (attribute (name tourism-type) (value $?tt) (certainty ?cf&:(= ?cf 100.0)))
+  (test (subsetp (create$ montano) (create$ ?tt)))
+  (test (not (subsetp (create$ naturalistico) (create$ ?tt))))
+  =>
+  (assert (attribute (name tourism-type) (value naturalistico) (certainty 40.0)))
+)
+
+(defrule ENRICH::infer-culturale-religioso-pref
+  (attribute (name tourism-type) (value $?tt) (certainty ?cf&:(= ?cf 100.0)))
+  (test (subsetp (create$ culturale) (create$ ?tt)))
+  (test (not (subsetp (create$ religioso) (create$ ?tt))))
+  =>
+  (assert (attribute (name tourism-type) (value religioso) (certainty 30.0)))
+)
+
+(defrule ENRICH::infer-religioso-culturale-pref
+  (attribute (name tourism-type) (value $?tt) (certainty ?cf&:(= ?cf 100.0)))
+  (test (subsetp (create$ religioso) (create$ ?tt)))
+  (test (not (subsetp (create$ culturale) (create$ ?tt))))
+  =>
+  (assert (attribute (name tourism-type) (value culturale) (certainty 30.0)))
+)
+
+(defrule ENRICH::infer-sportivo-enogastronomico-pref
+  (attribute (name tourism-type) (value $?tt) (certainty ?cf&:(= ?cf 100.0)))
+  (test (subsetp (create$ sportivo) (create$ ?tt)))
+  (test (not (subsetp (create$ enogastronomico) (create$ ?tt))))
+  =>
+  (assert (attribute (name tourism-type) (value culturale) (certainty 35.0)))
+)
+
+(defrule ENRICH::infer-balneare-lacustre-pref
+  (attribute (name tourism-type) (value $?tt) (certainty ?cf&:(= ?cf 100.0)))
+  (test (subsetp (create$ balneare) (create$ ?tt)))
+  (test (not (subsetp (create$ lacustre) (create$ ?tt))))
+  =>
+  (assert (attribute (name tourism-type) (value lacustre) (certainty 10.0)))
+)
+
+(defrule ENRICH::infer-lacustre-balneare-pref
+  (attribute (name tourism-type) (value $?tt) (certainty ?cf&:(= ?cf 100.0)))
+  (test (subsetp (create$ lacustre) (create$ ?tt)))
+  (test (not (subsetp (create$ balneare) (create$ ?tt))))
+  =>
+  (assert (attribute (name tourism-type) (value balneare) (certainty 30.0)))
+)
+
+;;********************
+;;* LOCATIONS MODULE *
+;;********************
 
 (defmodule LOCATIONS (import MAIN ?ALL) (export ?ALL))
 
@@ -337,7 +392,7 @@
   (attribute (name tourism-type) (value $? ?val $?) (certainty ?c))
   ?l <- (location (name ?name) (region ?region) (tourism-type $? ?val&:(lexemep ?val) ?rank&:(floatp ?rank) $?))
   =>
-  (assert (specification (name location-fit) (subject ?l) (value ?rank)))
+  (assert (specification (name location-fit) (subject ?l) (value (* ?rank (/ ?c 100)))))
 )
 
 (defrule LOCATIONS::update-region-fit
@@ -345,7 +400,7 @@
   (attribute (name regions) (value $? ?val $?) (certainty ?c))
   ?l <- (location (name ?name) (region ?val))
   =>
-  (assert (specification (name location-fit) (subject ?l) (value 15.0))) ; like a city with 3 matching turism type, but not in the selected region
+  (assert (specification (name location-fit) (subject ?l) (value (* 15.0 (/ ?c 100))))) ; like a city with 3 matching turism type, but not in the selected region
 )
 
 (defrule LOCATIONS::delete-prec-computation-on-change
@@ -693,13 +748,10 @@
    (* ?cf 100)
 )
 
-(deffunction TRIP-SELECTION::default-to-denominator (?cfs)
-   (bind ?cf (max (expand$ (create$ ?cfs))))
-   (if (< ?cf 100) 
-   then (bind ?d 2)
-   else (bind ?d 1)
-   )
-   ?d
+(deffunction LOCATIONS::get-number-locality-pref ()
+   (bind ?n 0)
+   (do-for-all-facts ((?f attribute)) (eq ?f:name tourism-type) (bind ?n (+ ?n (length$ ?f:value))))
+   ?n
 )
 
 (defrule TRIP-SELECTION::generate-pathfit
@@ -712,10 +764,10 @@
 
 (defrule TRIP-SELECTION::generate-path-fit-certainty
   ?s <- (specification (name path-fit) (subject ?t) (value ?fit))
-  (attribute (name number-locations) (value ?nl) (certainty ?cnl))
-  (attribute (name tourism-type) (value $?vals) (certainty ?ctt))
+  (attribute (name number-locations) (value ?nl))
+  (attribute (name tourism-type) (value $?vals))
   =>
-  (assert (attribute (name path-confidence) (value ?t) (certainty (* (/ ?fit (* (+ (* 5.0 (length$ ?vals)) 15.0) (* ?nl 1.5))) 100))))
+  (assert (attribute (name path-confidence) (value ?t) (certainty (* (/ ?fit (* (+ (* 5.0 (get-number-locality-pref)) 15.0) (* ?nl 1.5))) 100))))
   (retract ?s)
 )
 
@@ -742,7 +794,7 @@
   ?t <- (trip (moving-km ?km))
   (attribute (name max-km) (value ?max-km) (certainty ?c-km))
   =>
-  (assert (attribute (name path-confidence) (value ?t) (certainty (/ (distance-to-cf ?km ?max-km) (default-to-denominator ?c-km)))))
+  (assert (attribute (name path-confidence) (value ?t) (certainty (* (distance-to-cf ?km ?max-km) (/ ?c-km 100)))))
 )
 
 (defrule TRIP-SELECTION::generate-trip-hotel-incorrect-count
@@ -789,8 +841,8 @@
             (if (= ?days -1)
             then 
               (bind ?days ?field)
-              (printout t "      City: " ?city crlf "      Hotel: " ?hotel " (" ?stars " stars)" crlf "      Permanence: " ?days)
-              (if (> ?days 1) then (printout t " days" crlf crlf) else (printout t " day" crlf crlf))
+              (printout t "*       City: " ?city crlf "*       Hotel: " ?hotel " (" ?stars " stars)" crlf "*       Permanence: " ?days)
+              (if (> ?days 1) then (printout t " days" crlf "*" crlf) else (printout t " day" crlf "*" crlf))
               (bind ?city nil)
               (bind ?hotel nil)
               (bind ?stars -1)
@@ -840,17 +892,17 @@
   (attribute (name number-locations) (value ?nl))
   =>
   (printout t crlf)
-  (printout t "***********************************" crlf)
-  (printout t "Trip suggestion (with certainty " (round ?cf) ")" crlf)
-  (printout t " - Journey length: " ?nd " days" crlf)
-  (printout t " - Number of locations: " ?nl " city" crlf)
-  (printout t " - Number of people: " ?np crlf)
-  (printout t " - Total journey: " (round ?km) " km" crlf)
-  (printout t " - Hotels cost: " (round ?cost) "€")
+  (printout t "*******************************************" crlf)
+  (printout t "* Trip suggestion (with certainty " (round ?cf) ")" crlf)
+  (printout t "*  - Journey length: " ?nd " days" crlf)
+  (printout t "*  - Number of locations: " ?nl " city" crlf)
+  (printout t "*  - Number of people: " ?np crlf)
+  (printout t "*  - Total journey: " (round ?km) " km" crlf)
+  (printout t "*  - Hotels cost: " (round ?cost) "€")
   (if (eq ?allow-double TRUE) then (printout t " (with double rooms)" crlf) else (printout t " (with single rooms)" crlf))
-  (printout t " - Journey: " crlf)
+  (printout t "*  - Journey: " crlf)
   (print-formatted-trip ?to-print)
-  (printout t "***********************************" crlf)
+  (printout t "*******************************************" crlf)
   (retract ?print)
   (retract ?t)
   (retract ?tcf)

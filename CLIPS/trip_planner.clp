@@ -11,11 +11,13 @@
 ;;* DEFFUNCTIONS *
 ;;****************
 
-(deffunction MAIN::ask-question (?question ?allowed-values ?domain)
+(deffunction MAIN::ask-question (?question ?allowed-values ?domain ?must-answer)
    (printout t ?question)
    (bind ?answer (explode$ (readline)))
    (if (lexemep ?answer) then (bind ?answer (lowcase ?answer)))
-   (while (not (or (subsetp ?answer ?allowed-values) 
+   (while (not (or (or (and (subsetp ?answer ?allowed-values) (eq ?must-answer FALSE)) 
+                       (and (subsetp ?answer ?allowed-values) (> (length$ ?answer) 0) (eq ?must-answer TRUE))
+                    ) 
                     (and 
                         (eq ?domain "positive-integer")
                         (and 
@@ -51,14 +53,15 @@
    (multislot value))
 
 (defrule MAIN::start
-  (declare (salience 10000))
+  (declare (salience 10000) (auto-focus TRUE))
+  (attribute (name restart))
   =>
   (set-fact-duplication TRUE)
-  (focus QUESTIONS LOCATIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-COST TRIP-SELECTION))
+  (focus QUESTIONS LOCATIONS GENERATE-PATH OPTMIZE-PATH HOTEL TRIP TRIP-COST TRIP-SELECTION PRINT-RESULTS FINAL-QUESTIONS)
+)
 
 (defrule MAIN::combine-positive-certainties
-  (declare (salience 100)
-           (auto-focus TRUE))
+  (declare (salience 100) (auto-focus TRUE))
   ?rem1 <- (attribute (name ?rel) (value ?val) (certainty ?per1&:(>= ?per1 0)))
   ?rem2 <- (attribute (name ?rel) (value ?val) (certainty ?per2&:(>= ?per2 0)))
   (test (neq ?rem1 ?rem2))
@@ -67,8 +70,7 @@
   (modify ?rem2 (certainty (/ (- (* 100 (+ ?per1 ?per2)) (* ?per1 ?per2)) 100))))
 
 (defrule MAIN::combine-negative-certainties
-  (declare (salience 100)
-           (auto-focus TRUE))
+  (declare (salience 100) (auto-focus TRUE))
   ?rem1 <- (attribute (name ?rel) (value ?val) (certainty ?per1&:(< ?per1 0)))
   ?rem2 <- (attribute (name ?rel) (value ?val) (certainty ?per2&:(< ?per2 0)))
   (test (neq ?rem1 ?rem2))
@@ -98,6 +100,10 @@
     (modify ?s1 (value (+ ?fit1 ?fit2)))
     (retract ?s2)
 )
+
+(deffacts MAIN::restart-fact
+    (attribute (name restart))
+)
   
 ;;******************
 ;;* QUESTION RULES *
@@ -111,18 +117,21 @@
    (multislot valid-answers (default ?NONE))
    (slot valid-answers-domain (default "any"))
    (slot already-asked (default FALSE))
+   (slot must-answer (default FALSE))
    (multislot precursors (default ?DERIVE)))
    
 (defrule QUESTIONS::ask-a-question
+   (attribute (name restart))
    ?f <- (question (already-asked FALSE)
                    (precursors)
                    (the-question ?the-question)
                    (attribute ?the-attribute)
+                   (must-answer ?must-answer)
                    (valid-answers-domain ?domain)
                    (valid-answers $?valid-answers))
    =>
    (assert (attribute-intention (name ?the-attribute)
-                      (value (ask-question ?the-question ?valid-answers ?domain)))))
+                      (value (ask-question ?the-question ?valid-answers ?domain ?must-answer)))))
 
 
 (defrule QUESTIONS::verify-attribute-intention-valid
@@ -199,10 +208,10 @@
 (deffacts TRIP-QUESTIONS::question-attributes
   (question (attribute tourism-type)
             (the-question "Quali tipi di turismo preferisce? ")
-            (valid-answers balneare montano lacustre naturalistico termale culturale religioso sportivo enogastronomico unknown))
+            (valid-answers balneare montano lacustre naturalistico termale culturale religioso sportivo enogastronomico))
   (question (attribute regions)
             (the-question "Quali sono le regioni in cui vuole effettuare il viaggio? ")
-            (valid-answers piemonte liguria valle_daosta lombardia emilia_romagna unknown))
+            (valid-answers piemonte liguria valle_daosta lombardia emilia_romagna))
   (question (attribute number-locations)
             (the-question "Quante località si vuole visitare durante il viaggio? ")
             (valid-answers)
@@ -223,9 +232,9 @@
             (valid-answers)
             (valid-answers-domain "positive-integer"))
   (question (attribute group-allow-double-room)
-          (the-question "Le persone sono disponibili a dormire in camere doppie? ")
-          (precursors n-people is-cf 100)
-          (valid-answers TRUE FALSE))
+            (the-question "Le persone sono disponibili a dormire in camere doppie? ")
+            (precursors n-people is-cf 100)
+            (valid-answers TRUE FALSE))
 
 ;;* DEFAULTS      
   (attribute (name regions) (value) (certainty 50.0))
@@ -294,31 +303,31 @@
 )
 
 (deffacts LOCATIONS::location-lists
-  (location (name finale-ligure)
+  (location (name "Finale Ligure")
             (region liguria)
             (lat 44.169072)
             (long 8.343536)
             (tourism-type balneare 5.0 naturalistico 3.8 montano 3.0)
   )
-  (location (name sanremo)
+  (location (name "Sanremo")
             (region liguria)
             (lat 43.821414)
             (long 7.786561)
             (tourism-type balneare 3.0 culturale 4.2 enogastronomico 4.7)
   )
-  (location (name alassio)
+  (location (name "Alassio")
             (region liguria)
             (lat 44.007917)
             (long 8.173044)
             (tourism-type balneare 5.0 enogastronomico 4.3)
   )
-  (location (name laigueglia)
+  (location (name "Laigueglia")
             (region liguria)
             (lat 43.974511)
             (long 8.158311)
             (tourism-type balneare 4.0)
   )
-  (location (name torino)
+  (location (name "Torino")
             (region piemonte)
             (lat 45.066667)
             (long 7.7)
@@ -439,37 +448,37 @@
 
 (deffacts HOTEL::hotels-lists
   (hotel (name "lido resort")
-         (city finale-ligure)
+         (city "Finale Ligure")
          (region liguria)
          (rooms 30)
          (stars 3)
   )
   (hotel (name "lido mare")
-         (city finale-ligure)
+         (city "Finale Ligure")
          (region liguria)
          (rooms 40)
          (stars 4)
   )
   (hotel (name "lido resort")
-         (city alassio)
+         (city "Alassio")
          (region liguria)
          (rooms 30)
          (stars 4)
   )
   (hotel (name "lido resort")
-         (city laigueglia)
+         (city "Laigueglia")
          (region liguria)
          (rooms 30)
          (stars 4)
   )
   (hotel (name "lido resort")
-         (city torino)
+         (city "Torino")
          (region piemonte)
          (rooms 30)
          (stars 3)
   )
   (hotel (name "lido resort")
-         (city sanremo)
+         (city "Sanremo")
          (region liguria)
          (rooms 30)
          (stars 4)
@@ -681,7 +690,7 @@
   (attribute (name number-locations) (value ?nl) (certainty ?cnl))
   (attribute (name tourism-type) (value $?vals) (certainty ?ctt))
   =>
-  (assert (attribute (name path-confidence-fit) (value ?t) (certainty (* (/ ?fit (* (+ (* 5.0 (length$ ?vals)) 15.0) (* ?nl 1.5))) 100))))
+  (assert (attribute (name path-confidence) (value ?t) (certainty (* (/ ?fit (* (+ (* 5.0 (length$ ?vals)) 15.0) (* ?nl 1.5))) 100))))
   (retract ?s)
 )
 
@@ -689,7 +698,7 @@
   ?t <- (trip (cost ?price))
   (attribute (name budget) (value ?max-price))
   =>
-  (assert (attribute (name path-confidence-price) (value ?t) (certainty (bounded-price-to-cf ?price ?max-price))))
+  (assert (attribute (name path-confidence) (value ?t) (certainty (bounded-price-to-cf ?price ?max-price))))
 )
 
 (defrule TRIP-SELECTION::generate-path-price-certainty
@@ -698,7 +707,7 @@
   (attribute (name n-people) (value ?np))
   (attribute (name group-allow-double-room) (value ?allow-double))
   =>
-  (assert (attribute (name path-confidence-price) 
+  (assert (attribute (name path-confidence) 
   (value ?t) 
   (certainty (price-to-cf ?price 
                           (* (* (room-price 3) ?day) (rooms-number ?np ?allow-double)))))) ; price estimation
@@ -708,7 +717,7 @@
   ?t <- (trip (moving-km ?km))
   (attribute (name max-km) (value ?max-km) (certainty ?c-km))
   =>
-  (assert (attribute (name path-confidence-distance) (value ?t) (certainty (/ (distance-to-cf ?km ?max-km) (default-to-denominator ?c-km)))))
+  (assert (attribute (name path-confidence) (value ?t) (certainty (/ (distance-to-cf ?km ?max-km) (default-to-denominator ?c-km)))))
 )
 
 (defrule TRIP-SELECTION::generate-trip-hotel-incorrect-count
@@ -726,7 +735,136 @@
   ?s <- (specification (name path-out-of-range-hotel) (subject ?t) (value ?ih))
   (attribute (name number-locations) (value ?nl))
   =>
-  (assert (attribute (name path-confidence-hotel) (value ?t) (certainty (* (/ ?ih ?nl) -60))))
+  (assert (attribute (name path-confidence) (value ?t) (certainty (* (/ ?ih ?nl) -60))))
   (retract ?s)
 )
 
+;;************************
+;;* PRINT RESULTS *
+;;************************
+
+(defmodule PRINT-RESULTS (import MAIN ?ALL) (import LOCATIONS ?ALL) (import HOTEL ?ALL) (import TRIP ?ALL) (export ?ALL))
+
+(deffunction PRINT-RESULTS::print-formatted-trip (?trip)
+  (bind ?city nil)
+  (bind ?hotel nil)
+  (bind ?stars -1)
+  (bind ?days -1)
+  (progn$ 
+    (?field (create$ ?trip))
+    (if (eq ?city nil) 
+      then (bind ?city ?field)
+      else 
+        (if (eq ?hotel nil)
+        then (bind ?hotel ?field)
+        else
+          (if (= ?stars -1)
+          then (bind ?stars ?field)
+          else
+            (if (= ?days -1)
+            then 
+              (bind ?days ?field)
+              (printout t "      City: " ?city crlf "      Hotel: " ?hotel " (" ?stars " stars)" crlf "      Permanence: " ?days)
+              (if (> ?days 1) then (printout t " days" crlf crlf) else (printout t " day" crlf crlf))
+              (bind ?city nil)
+              (bind ?hotel nil)
+              (bind ?stars -1)
+              (bind ?days -1)
+            )
+          )
+        )
+    )
+  )
+)
+
+(deffacts PRINT-RESULTS::print-fact
+  (attribute (name max-print) (value 3))
+  (attribute (name printed) (value 0))
+)
+
+(defrule PRINT-RESULTS::init-printable-solution
+  ?t <- (trip (trip-plan ?l ?h ?d $?rest) (moving-km ?km) (cost ?cost))
+  (attribute (name path-confidence) (value ?t) (certainty ?cf))
+  (not (attribute (name path-confidence) (value ?t2) (certainty ?cf2&:(> ?cf2 ?cf))))
+  (not (specification (name printable-trip) (subject ?t)))
+  (attribute (name max-print) (value ?max-print))
+  ?p <- (attribute (name printed) (value ?printed&:(< ?printed ?max-print)))
+  =>
+  (assert (specification (name printable-trip) (subject ?t) (value)))
+  (modify ?p (value (+ ?printed 1)))
+)
+
+(defrule PRINT-RESULTS::generate-printable-solution
+  ?l <- (location (name ?l-name) (region ?l-region))
+  ?h <- (hotel (name ?h-name) (stars ?h-stars))
+  ?t <- (trip (trip-plan ?l ?h ?d $?rest) (moving-km ?km) (cost ?cost))
+  ?print <- (specification (name printable-trip) (subject ?t) (value $?prec))
+  =>
+  (modify ?t (trip-plan ?rest))
+  (modify ?print (value ?prec ?l-name ?h-name ?h-stars ?d))
+)
+
+(defrule PRINT-RESULTS::print-printable-solution
+  (declare (salience -100))
+  ?t <- (trip (moving-km ?km) (cost ?cost))
+  ?tcf <- (attribute (name path-confidence) (value ?t) (certainty ?cf))
+  ?print <- (specification (name printable-trip) (subject ?t) (value $?to-print))
+  (attribute (name n-day) (value ?nd))
+  (attribute (name n-people) (value ?np))
+  (attribute (name group-allow-double-room) (value ?allow-double))
+  (attribute (name number-locations) (value ?nl))
+  =>
+  (printout t crlf)
+  (printout t "Trip suggestion (with certainty " (round ?cf) ")" crlf)
+  (printout t " - Journey length: " ?nd " days" crlf)
+  (printout t " - Number of locations: " ?nl " city" crlf)
+  (printout t " - Number of people: " ?np crlf)
+  (printout t " - Total journey: " (round ?km) " km" crlf)
+  (printout t " - Hotels cost: " (round ?cost) "€")
+  (if (eq ?allow-double TRUE) then (printout t " (with double rooms)" crlf) else (printout t " (with single rooms)" crlf))
+  (printout t " - Journey: " crlf)
+  (print-formatted-trip ?to-print)
+  (retract ?print)
+  (retract ?t)
+  (retract ?tcf)
+)
+
+;;************************
+;;* PRINT RESULTS *
+;;************************
+
+(defmodule FINAL-QUESTIONS (import MAIN ?ALL) (import QUESTIONS ?ALL) (import PRINT-RESULTS ?ALL) (export ?ALL))
+
+(defrule FINAL-QUESTIONS::insert-final-question
+  (not (attribute (name final-question)))
+  =>
+  (assert (question (attribute final-question)
+          (the-question "Insert -more- for showing other solutions, -affine- to affine the research or -exit-: ")
+          (must-answer TRUE)
+          (valid-answers more affine exit reset)))
+  (focus QUESTIONS FINAL-QUESTIONS)
+)
+
+(defrule FINAL-QUESTIONS::show-more-result
+  ?fq <- (attribute (name final-question) (value more))
+  ?max-p <- (attribute (name max-print) (value ?max-print))
+  =>
+  (modify ?max-p (value (+ ?max-print 3)))
+  (retract ?fq)
+  (focus PRINT-RESULTS FINAL-QUESTIONS)
+)
+
+(defrule FINAL-QUESTIONS::affine-search
+  ?fq <- (attribute (name final-question) (value affine))
+  ?rs <- (attribute (name restart))
+  =>
+  (retract ?fq)
+  (retract ?rs) (assert (attribute (name restart)))
+)
+
+(defrule FINAL-QUESTIONS::reset-instance
+  (attribute (name final-question) (value reset))
+  =>
+  (reset)
+  (run)
+)

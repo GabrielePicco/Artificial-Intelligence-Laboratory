@@ -2,26 +2,7 @@
 ===========================================
 Kalman Filter Experiments
 ===========================================
-- Kalman Filter using 2 variables (position, velocity)
-- Plotting only position states (true, filtered, observed
-- 4 variables, print only position measures (filt, obs, true)
-- Samples function: parte da uno stato iniziale e itera "n_timestamps" volte
-generando gli stati reali (states) e le osservazioni (observations9
-- Il filtro è inizializzato con la matrice di transizione (serve a calcolare lo stato corrente
-a partire da quello precedente con rumore), matrice di osservazione (misure dei sensori con
-rumore), le matrici di covarianza sia di transizione che di osservazione (indicano la quantità
-di rumore, matrici di 1 (np.eye) moltiplicate per rumore gaussiano)
-- Transition offset: corrisponde a "b" nell'aggiornamento della gaussiana del processo: Ax + b
-- Observation offset: corrisponde a "b" nell'aggiornamento della gaussiana delle osservazioni: Ax + b
-
-- Test da fare:
-Rumore osservazioni: nullo, alto, basso
-Rumore transizioni: nullo, alto, basso
-Provare varie combinazioni: es. errore di processo nullo e di osservazione molto alto, tutti e due nulli, ecc...
-Stato iniziale: Rumore nullo, alto, basso
-
-(facoltativo) simulare un processo (più o meno) non lineare e
-vedere come si comporta il KF
+Kalman Filter using 2 variables (position, velocity)
 '''
 import numpy as np
 import pylab as pl
@@ -32,45 +13,32 @@ import math
 PERFECT_START = True
 
 
-def initialize_kalman_filter(observation_sigma, transition_sigma, initial_state_sigma):
-    gaussian_mean_obs, gaussian_mean_transit, gaussian_mean_init_s = 1, 1, 1
-    time_steps = 10
-    transition_matrix = [[0.5, 0.1], [0.5, 0.9]]  # [[posizione_x, posizione_y],[velocita_x, velocita_y]]
-    observation_matrix = np.eye(2)
-    transition_covariance = np.eye(2) * np.random.normal(gaussian_mean_transit, transition_sigma)
-    observation_covariance = np.eye(2) * np.random.normal(gaussian_mean_obs, observation_sigma)
-    initial_state_mean = [1, 1]
-    transition_offsets = [1, 1]
-    observation_offsets = [0, 0]
-    if PERFECT_START:
-        initial_state_covariance = np.eye(2)
-    else:
-        initial_state_covariance = np.eye(2) * np.random.normal(gaussian_mean_init_s, initial_state_sigma)  # P0
-    kf = KalmanFilter(
-        transition_matrix, observation_matrix, transition_covariance,
-        observation_covariance, transition_offsets=transition_offsets, observation_offsets=observation_offsets,
-        initial_state_mean=initial_state_mean, initial_state_covariance=initial_state_covariance
-    )
-    print_parameters(observation_sigma, transition_sigma, initial_state_mean, initial_state_sigma)
-    return kf, get_states_and_observations(kf, time_steps, initial_state_mean)
-
-
 def get_states_and_observations(kf, time_steps, initial_state_mean):
-    states, observations = states, observations = kf.sample(  # linear sample
+    '''
+    Sample a sequence of state and observations in timesteps legnth
+    :param kf: initialized kalman filter
+    :param time_steps: number of iterations
+    :param initial_state_mean:  mean of the initial state
+    :return: sampled states and observations
+    '''
+    states, observations = states, observations = kf.sample(
         n_timesteps=time_steps,
         initial_state=initial_state_mean)
     return states, observations
 
 
 def generate_exp_states_and_obs():
+    '''
+    Generate a sequence of 10 exponential distributed numbers. Limited
+    to 10 timesteps to avoid function explosion
+    :return: sequence of exponential sampled states and observation
+    '''
     states = []
     observations = []
     for i in range(10):
         states.append([math.exp(i), i])
     for e in states:
-        x = (np.dot(np.eye(2), e) + observation_offsets + np.random.RandomState(2).multivariate_normal(np.zeros(2),
-                                                                                                       observation_covariance.newbyteorder(
-                                                                                                           '=')))
+        x = (np.dot(np.eye(2), e) + observation_offsets + np.random.normal(1, 0.5))
         observations.append(x)
     return states, observations
 
@@ -118,12 +86,38 @@ def print_estimated_errors(PERFECT_START, states, filtered_state_estimates):
     print("Mean error is {}".format(np.mean(estimated_errors)))
 
 
-kf, (states, observations) = initialize_kalman_filter(observation_sigma=0.1, transition_sigma=0.1,
-                                                      initial_state_sigma=0.1)
+# parameters initialization
+observation_sigma = 0.1
+transition_sigma = 0.9
+initial_state_sigma = 0.1
+gaussian_mean_obs, gaussian_mean_transit, gaussian_mean_init_s = 2, 2, 2
+time_steps = 10
+transition_matrix = [[0.5, 0.1], [0.5, 0.9]]  # [[position_x, position_y],[velocity_x, velocity_y]]
+observation_matrix = np.eye(2)
+transition_covariance = np.eye(2) * np.random.normal(gaussian_mean_transit, transition_sigma)
+observation_covariance = np.eye(2) * np.random.normal(gaussian_mean_obs, observation_sigma)
+initial_state_mean = [1, 1]
+transition_offsets = [1, 1]
+observation_offsets = [0, 0]
+if PERFECT_START:
+    initial_state_covariance = np.eye(2)
+else:
+    initial_state_covariance = np.eye(2) * np.random.normal(gaussian_mean_init_s, initial_state_sigma)  # P0
 
+# filter initialization
+kf = KalmanFilter(
+    transition_matrix, observation_matrix, transition_covariance,
+    observation_covariance, transition_offsets=transition_offsets, observation_offsets=observation_offsets,
+    initial_state_mean=initial_state_mean, initial_state_covariance=initial_state_covariance
+)
+
+# get transition model, observations and apply filter
+states, observations = get_states_and_observations(kf, time_steps, initial_state_mean)  # linear sample
 # states, observations = generate_exp_states_and_obs() # non linear (exponential) sample
-
 filtered_state_estimates, predicted_state_covariance, kalman_gains = kf.filter(observations)
+
+# draw estimates and print parameters and results
+print_parameters(observation_sigma, transition_sigma, initial_state_mean, initial_state_sigma)
 draw_estimates(states, filtered_state_estimates, observations)
 print_estimated_errors(PERFECT_START, states, filtered_state_estimates)
 print("Kalman gains trough timesteps \n{}".format(kalman_gains))

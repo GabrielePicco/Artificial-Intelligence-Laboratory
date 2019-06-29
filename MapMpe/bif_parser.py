@@ -12,13 +12,19 @@ def parse_network(bif_file):
     with open(bif_file) as f:
         bif = f.read()
     net = HybridBayesNet()
+    nodes = []
     for match in re.finditer(variables, bif):
         v_name = match.group(1)
         v_domain = __get_variable_domain(match.group(2))
         v_parent = __get_parent(v_name, bif)
         v_cpt = __get_cpt(v_name, v_parent, bif)
         node = HybridBayesNode(v_name, v_parent, v_domain, v_cpt)
-        net.add(node)
+        nodes.append(node)
+    while nodes:
+        for index, n in enumerate(nodes):
+            if all((parent in net.variables) for parent in n.parents):
+                net.add(n)
+                nodes.pop(index)
     return net
 
 

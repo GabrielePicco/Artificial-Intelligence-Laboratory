@@ -1,4 +1,4 @@
-from bif_parser import parse_network
+from bif_parser import parse_network_from_file
 from probability import mpe_ask, map_ask  # , burglary
 import pylab as pl
 import time
@@ -7,32 +7,32 @@ import random
 
 
 def test_time_mpe_small_earthquake():
-    bn = parse_network("./sample_bayesian_networks/earthquake.bif")
+    bn = parse_network_from_file("./sample_bayesian_networks/earthquake.bif")
     mpe_ask(dict(JohnCalls="True", MaryCalls="True"), bn)
 
 
 def test_time_map_small_earthquake():
-    bn = parse_network("./sample_bayesian_networks/earthquake.bif")
+    bn = parse_network_from_file("./sample_bayesian_networks/earthquake.bif")
     map_ask(dict(Burglary="True", JohnCalls="True"), bn, not_map_vars=['Alarm'])
 
 
 def test_time_mpe_medium_insurance():
-    bn = parse_network("./sample_bayesian_networks/insurance.bif")
+    bn = parse_network_from_file("./sample_bayesian_networks/insurance.bif")
     mpe_ask(dict(PropCost="Thousand", RiskAversion="Adventurous"), bn)
 
 
 def test_time_map_medium_insurance():
-    bn = parse_network("./sample_bayesian_networks/insurance.bif")
+    bn = parse_network_from_file("./sample_bayesian_networks/insurance.bif")
     map_ask(dict(PropCost="Thousand", RiskAversion="Psychopath"), bn, map_vars=['Theft'])
 
 
 def test_time_mpe_medium_alarm():
-    bn = parse_network("./sample_bayesian_networks/alarm.bif")
+    bn = parse_network_from_file("./sample_bayesian_networks/alarm.bif")
     mpe_ask(dict(STROKEVOLUME="NORMAL", HISTORY="TRUE"), bn)
 
 
 def test_time_map_medium_alarm():
-    bn = parse_network("./sample_bayesian_networks/alarm.bif")
+    bn = parse_network_from_file("./sample_bayesian_networks/alarm.bif")
     map_ask(dict(STROKEVOLUME="NORMAL", HISTORY="TRUE"), bn, map_vars=['HISTORY', 'CVP', 'PCWP', 'HYPOVOLEMIA'])
 
 
@@ -46,14 +46,14 @@ def plot_list(list, title, xlab, ylab):
 
 
 def plot_mpe_time_growing_var(bn_path):
-    bn = parse_network(bn_path)
+    bn = parse_network_from_file(bn_path)
     variables = bn.variables
     var_values = [bn.variable_values(var) for var in variables]
     random_sel_values = [random.choice(val_list) for val_list in var_values]
     dic = dict(zip(variables, random_sel_values))
     times_list = []
     for i, item in enumerate(dic):
-        # bn = parse_network("./sample_bayesian_networks/alarm.bif")
+        # bn = parse_network_from_file("./sample_bayesian_networks/alarm.bif")
         bn.last_max_out = None
         first_n_pairs = {k: dic[k] for k in list(dic)[:i]}
         ts = time.time()
@@ -64,7 +64,7 @@ def plot_mpe_time_growing_var(bn_path):
 
 
 def plot_map_time_growing_var_fixed_evidence(bn_path):
-    bn = parse_network(bn_path)
+    bn = parse_network_from_file(bn_path)
     variables = bn.variables
     var_values = [bn.variable_values(var) for var in variables]
     random_sel_values = [random.choice(val_list) for val_list in var_values]
@@ -86,7 +86,7 @@ def plot_map_time_growing_var_fixed_evidence(bn_path):
 
 
 def plot_map_time_growing_var_fixed_map_var(bn_path):
-    bn = parse_network(bn_path)
+    bn = parse_network_from_file(bn_path)
     variables = bn.variables
     fixed_map_var = variables[0]
     var_values = [bn.variable_values(var) for var in variables]

@@ -1,3 +1,6 @@
+from _operator import mul
+from functools import reduce
+
 from HybridBayesNet import HybridBayesNet, HybridBayesNode
 import re
 
@@ -15,7 +18,7 @@ def parse_network(bif_file):
     nodes = []
     for match in re.finditer(variables, bif):
         v_name = match.group(1)
-        v_domain = __get_variable_domain(match.group(2))
+        v_domain = __get_variable_domain_by_parsable_text(match.group(2))
         v_parent = __get_parent(v_name, bif)
         v_cpt = __get_cpt(v_name, v_parent, bif)
         node = HybridBayesNode(v_name, v_parent, v_domain, v_cpt)
@@ -28,8 +31,17 @@ def parse_network(bif_file):
     return net
 
 
-def __get_variable_domain(bif_domain):
+def __get_variable_domain_by_parsable_text(bif_domain):
     return list(map(str.strip, bif_domain[bif_domain.index("{") + 1:bif_domain.index("}")].split(",")))
+
+
+def __get_variable_domain_by_name(variable, bif):
+    match = F"variable {variable} {{\n(.+?);"
+    s = re.search(match, bif)
+    v_domain = []
+    if s:
+        v_domain = __get_variable_domain_by_parsable_text(s.group(1))
+    return v_domain
 
 
 def __extract_float_list(str_i):
@@ -46,13 +58,12 @@ def __get_parent(v_name, bif):
 
 
 def __get_cpt(v_name, v_parents, bif):
-    n_parents = len(v_parents.split())
-    n_cpt_entry = 2 ** n_parents
+    n_cpt_entry = reduce(mul, [len(__get_variable_domain_by_name(p, bif)) for p in v_parents.split()], 1)
     variable = F"probability \( {v_name} (.*?)\)" + F" {{\n" + F"(.*?)\n" * n_cpt_entry + F"}}"
     s = re.search(variable, bif)
     cpt = {}
     if s:
-        if n_parents == 0:
+        if n_cpt_entry == 1:
             cpt['()'] = __extract_float_list(s.group(2))
         else:
             for e in range(2, n_cpt_entry + 2):

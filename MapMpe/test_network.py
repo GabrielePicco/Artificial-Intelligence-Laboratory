@@ -1,3 +1,4 @@
+from Utility.decorator import timeit
 from bif_parser import parse_network
 from probability import mpe_ask, map_ask  # , burglary
 
@@ -29,5 +30,20 @@ def test_map_medium():
     print(F"P(map,e): {prob}, MAP: {assgn}")
 
 
-test_mpe_medium()
-test_map_medium()
+def test_map_medium_alarm():
+    bn = parse_network("./sample_bayesian_networks/insurance.bif")
+    prob, assgn = map_ask(dict(PropCost="Thousand", RiskAversion="Adventurous"), bn, map_vars=['Theft'])
+    print(F"P(map,e): {prob}, MAP: {assgn}")
+
+
+#test_mpe_medium()
+#test_map_medium()
+
+@timeit
+def test_map_medium_alarm():
+    bn = parse_network("./sample_bayesian_networks/alarm.bif")
+    prob, assgn = map_ask(dict(), bn, map_vars=['HISTORY', 'CVP', 'PCWP', 'HYPOVOLEMIA'])
+    print(F"P(map,e): {prob}, MAP: {assgn}")
+
+
+test_map_medium_alarm()

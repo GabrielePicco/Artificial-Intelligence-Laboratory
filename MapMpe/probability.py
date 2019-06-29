@@ -3,6 +3,7 @@ Modified AIMA-core classes and extended wiht MPE and MAP
 """
 
 from functools import reduce
+from Utility.decorator import timeit
 
 from factor import Factor, all_events, event_values
 
@@ -24,6 +25,7 @@ def elimination_ask(X, e, bn):
     return pointwise_product(factors, bn).normalize()
 
 
+@timeit
 def mpe_ask(e, bn):
     """
     Compute mpe
@@ -41,6 +43,7 @@ def mpe_ask(e, bn):
     return p, bn.last_max_out.mpe_assignement(not_evidence_variables)
 
 
+@timeit
 def map_ask(e, bn, map_vars=[], not_map_vars=[]):
     """
     Compute map
@@ -50,7 +53,8 @@ def map_ask(e, bn, map_vars=[], not_map_vars=[]):
     :param not_map_vars: not map variable
     :return:
     """
-    assert (len(map_vars) == 0 or len(not_map_vars) == 0) and (len(map_vars) > 0 or len(not_map_vars) > 0), "only map or not map should be specified"
+    assert (len(map_vars) == 0 or len(not_map_vars) == 0) and (
+            len(map_vars) > 0 or len(not_map_vars) > 0), "only map or not map should be specified"
     if len(not_map_vars) == 0:
         not_map_vars = [var for var in bn.variables if var not in map_vars and var not in e]
     factors = []

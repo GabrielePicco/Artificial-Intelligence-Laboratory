@@ -87,10 +87,12 @@ def plot_map_time_growing_var_fixed_evidence(bn_path):
 
 def plot_map_time_growing_var_fixed_map_var(bn_path):
     bn = parse_network_from_file(bn_path)
-    variables = bn.variables[:3] + bn.variables[4:]
-    fixed_map_var = bn.variables[3]
+    variables = bn.variables
+    fixed_map_var = variables[0]
     var_values = [bn.variable_values(var) for var in variables]
     random_sel_values = [random.choice(val_list) for val_list in var_values]
+    del variables[:0]
+    del random_sel_values[:0]
     dic = dict(zip(variables, random_sel_values))
     times_list = []
     for i, item in enumerate(dic):
@@ -101,7 +103,7 @@ def plot_map_time_growing_var_fixed_map_var(bn_path):
             map_ask(first_n_pairs, bn, map_vars=fixed_map_var)
             te = time.time()
             times_list.append(te - ts)
-    plot_list(times_list, "MAP growing map vars fixed map var", "# evidence", "time")
+    plot_list(times_list, "MAP growing map vars fixed map var", "# map vars", "time")
 
 
 if __name__ == "__main__":
@@ -112,5 +114,4 @@ if __name__ == "__main__":
     # test_time_mpe_medium_insurance()
     # test_time_map_medium_insurance()
     # plot_mpe_time_growing_var("./sample_bayesian_networks/alarm.bif")
-    plot_mpe_time_growing_var("./sample_bayesian_networks/alarm.bif")
     plot_map_time_growing_var_fixed_map_var("./sample_bayesian_networks/alarm.bif")

@@ -5,15 +5,24 @@ from HybridBayesNet import HybridBayesNet, HybridBayesNode
 import re
 
 
-def parse_network(bif_file):
+def parse_network_from_file(bif_file):
     """
     Parse and generate a networks encoded in a bif file
     :param bif_file: path to a bif file
     :return: a bayesian networks
     """
-    variables = r"variable (.+?) {\n(.+?);"
     with open(bif_file) as f:
         bif = f.read()
+    return parse_network(bif)
+
+
+def parse_network(bif):
+    """
+    Parse and generate a networks from bif file
+    :param bif: bif text
+    :return:
+    """
+    variables = r"variable (.+?) {\n(.+?);"
     net = HybridBayesNet()
     nodes = []
     for match in re.finditer(variables, bif):

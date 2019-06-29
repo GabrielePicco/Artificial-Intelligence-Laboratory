@@ -1,0 +1,15 @@
+variable X{0} {{
+  type discrete [ 2 ] {{ TRUE, FALSE }};
+}}
+probability ( X{0} ) {{
+  table 0.2, 0.8;
+}}
+variable S{0} {{
+  type discrete [ 2 ] {{ TRUE, FALSE }};
+}}
+probability ( S{0} | X{0}, S{1} ) {{
+  (TRUE, TRUE) 0.95, 0.05;
+  (FALSE, TRUE) 0.95, 0.05;
+  (TRUE, FALSE) 0.01, 0.99;
+  (FALSE, FALSE) 0.05, 0.95;
+}}

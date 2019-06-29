@@ -1,0 +1,8 @@
+network unknown {
+}
+variable S0 {
+  type discrete [ 2 ] { TRUE, FALSE };
+}
+probability ( S0 ) {
+  table 0.2, 0.8;
+}

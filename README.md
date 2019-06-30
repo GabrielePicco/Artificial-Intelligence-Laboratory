@@ -10,12 +10,19 @@ Implementation of algorithms
 
 Tests and considerations on the domain of the labyrinth
 
-Report: https://www.icloud.com/pages/0B0YCbULxg0kYMBVwSaXFIqVw#Prolog%5FLaboratorio
-
-
 ## ASP
 
+- Problem of satisfaction of constraints in the domain of school hours
 
-Problem of satisfaction of constraints in the domain of school hours
+## CLIPS
 
-Report: https://www.icloud.com/pages/0G-iAzcjjhSd0wLsFcGBekpMA#Parte%5FASP%5FLaboratorio
+- Expert system for planning a trip
+
+## Uncertainty
+
+- Implementation of MAP and MPE algorithms and considerations on complexity
+- Probabilistic temporal models: Kalman Filter
+
+# Report
+
+[![IMAGE ALT TEXT HERE](https://i.imgur.com/B0CHcA6.png)](https://github.com/GabrielePicco/Artificial-Intelligence-Laboratory/blob/master/relazione_locci_picco.pdf)

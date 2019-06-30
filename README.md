@@ -25,4 +25,4 @@ Expert system for planning a trip
 
 # Report
 
-[![IMAGE ALT TEXT HERE](https://i.imgur.com/9UdkRNx.png)](https://github.com/GabrielePicco/Artificial-Intelligence-Laboratory/blob/master/relazione_locci_picco.pdf)
+[![IMAGE ALT TEXT HERE](https://i.imgur.com/B0CHcA6.png)](https://github.com/GabrielePicco/Artificial-Intelligence-Laboratory/blob/master/relazione_locci_picco.pdf)

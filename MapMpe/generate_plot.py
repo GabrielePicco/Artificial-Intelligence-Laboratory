@@ -1,39 +1,11 @@
-from bif_parser import parse_network_from_file
-from probability import mpe_ask, map_ask  # , burglary
-import pylab as pl
-import time
-from itertools import islice
 import random
+import time
 
+import pylab as pl
 
-def test_time_mpe_small_earthquake():
-    bn = parse_network_from_file("./sample_bayesian_networks/earthquake.bif")
-    mpe_ask(dict(JohnCalls="True", MaryCalls="True"), bn)
-
-
-def test_time_map_small_earthquake():
-    bn = parse_network_from_file("./sample_bayesian_networks/earthquake.bif")
-    map_ask(dict(Burglary="True", JohnCalls="True"), bn, not_map_vars=['Alarm'])
-
-
-def test_time_mpe_medium_insurance():
-    bn = parse_network_from_file("./sample_bayesian_networks/insurance.bif")
-    mpe_ask(dict(PropCost="Thousand", RiskAversion="Adventurous"), bn)
-
-
-def test_time_map_medium_insurance():
-    bn = parse_network_from_file("./sample_bayesian_networks/insurance.bif")
-    map_ask(dict(PropCost="Thousand", RiskAversion="Psychopath"), bn, map_vars=['Theft'])
-
-
-def test_time_mpe_medium_alarm():
-    bn = parse_network_from_file("./sample_bayesian_networks/alarm.bif")
-    mpe_ask(dict(STROKEVOLUME="NORMAL", HISTORY="TRUE"), bn)
-
-
-def test_time_map_medium_alarm():
-    bn = parse_network_from_file("./sample_bayesian_networks/alarm.bif")
-    map_ask(dict(STROKEVOLUME="NORMAL", HISTORY="TRUE"), bn, map_vars=['HISTORY', 'CVP', 'PCWP', 'HYPOVOLEMIA'])
+from Utility.generate_networks import generate_polytree_network_bif, generate_chain
+from bif_parser import parse_network_from_file, parse_network
+from probability import mpe_ask, map_ask  # , burglary
 
 
 def plot_list(list, title, xlab, ylab):
@@ -104,13 +76,61 @@ def plot_map_time_growing_var_fixed_map_var(bn_path):
     plot_list(times_list, "MAP growing map vars fixed map var", "# evidence", "time")
 
 
-if __name__ == "__main__":
-    # test_time_mpe_small_earthquake()
-    # test_time_map_small_earthquake()
-    # test_time_mpe_medium_alarm()
-    # test_time_map_medium_alarm()
-    # test_time_mpe_medium_insurance()
-    # test_time_map_medium_insurance()
-    # plot_mpe_time_growing_var("./sample_bayesian_networks/alarm.bif")
-    plot_mpe_time_growing_var("./sample_bayesian_networks/alarm.bif")
-    plot_map_time_growing_var_fixed_map_var("./sample_bayesian_networks/alarm.bif")
+def plot_mpe_chain_var_network_size():
+    times_list = []
+    for i in range(1, 500):
+        size = i
+        bn = generate_chain(size=size)
+        ts = time.time()
+        prob, assgn = mpe_ask(dict([(F"S{size}", "True")]), bn)
+        te = time.time()
+        times_list.append(te - ts)
+    plot_list(times_list, "MPE on chain bayesian networks", "size of the chain", "computation time")
+
+
+def plot_map_chain_var_network_size():
+    times_list = []
+    for i in range(4, 500):
+        size = i
+        bn = generate_chain(size=size)
+        ts = time.time()
+        map_vars = [F"S{r}" for r in range(int(size / 2), size - 1)]
+        prob, assgn = map_ask(dict([(F"S{size}", "True")]), bn, not_map_vars=["S0"])
+        te = time.time()
+        times_list.append(te - ts)
+    plot_list(times_list, "MAP on chain bayesian networks", "size of the chain", "computation time")
+
+
+def plot_map_var_paper_network_size():
+    times_list = []
+    for i in range(4, 15):
+        size = i
+        bn = parse_network(generate_polytree_network_bif(size=size))
+        map_vars = [F"X{r}" for r in range(1, size + 1)]
+        ts = time.time()
+        prob, assgn = map_ask(dict([(F"S{size}", "TRUE")]), bn, map_vars=map_vars)
+        te = time.time()
+        times_list.append(te - ts)
+    plot_list(times_list, "MAP on dynamic bayesian networks", "size of the network", "computation time")
+
+
+def plot_map_insurance_network_var_mapvars():
+    times_list = []
+    bn = parse_network_from_file("./sample_bayesian_networks/insurance.bif")
+    for i in range(1, len(bn.variables)):
+        size = i
+        bn = parse_network_from_file("./sample_bayesian_networks/insurance.bif")
+        map_vars = bn.variables[0:i]
+        ts = time.time()
+        prob, assgn = map_ask(dict(), bn, map_vars=map_vars)
+        te = time.time()
+        times_list.append(te - ts)
+    plot_list(times_list, "MAP on Insurance network", "# of MAP variables", "computation time")
+
+
+plot_mpe_time_growing_var("./sample_bayesian_networks/alarm.bif")
+plot_map_time_growing_var_fixed_map_var("./sample_bayesian_networks/alarm.bif")
+plot_mpe_chain_var_network_size()
+plot_map_chain_var_network_size()
+plot_map_var_paper_network_size()
+plot_map_insurance_network_var_mapvars()

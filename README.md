@@ -12,11 +12,11 @@ Tests and considerations on the domain of the labyrinth
 
 ## ASP
 
-Problem of satisfaction of constraints in the domain of school hours
+- Problem of satisfaction of constraints in the domain of school hours
 
 ## CLIPS
 
-Expert system for planning a trip
+- Expert system for planning a trip
 
 ## Uncertainty
 
